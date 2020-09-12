@@ -1,0 +1,21 @@
+[GERAL]
+entrada = 2
+conta = REAL
+# PRACTICE / REAL
+
+stop_win = 5
+stop_loss = 25
+
+martingale = S
+mgProxSinal = N
+valorGale = 2.3
+niveis = 2
+
+analisarTendencia = S
+noticias = S
+hitVela = S
+
+[telegram]
+telegram_token = TOKEN
+telegram_id = ID
+usar_bot = N
