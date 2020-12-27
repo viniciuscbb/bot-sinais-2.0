@@ -19,3 +19,7 @@ hitVela = S
 telegram_token = TOKEN
 telegram_id = ID
 usar_bot = N
+
+[CONTA]
+email = coloque seu email
+senha = coloque sua senha
