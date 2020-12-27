@@ -102,24 +102,22 @@ def verificarStop(lucroTotal):
 
 
 def buscarMenor(lst):
-	i = float(999999999999999999.0)
 	timeNow = timestamp_converter()
 	f = '%H:%M:%S'
-	menor = ''
+	em_espera = []
 	for row in lst:
 		horario = row[2] + ":00"
-		dif = (datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds()
+		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds() / 60)
 		if dif < 0:
-			dif = abs(dif)
-			if dif < i:
-				i = dif
-				menor = row
-			else:
-				i = dif
-		pass
-	if menor == '':
-		menor = 'Fim'
-	return menor
+			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
+			row.append(dif)
+			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
+			em_espera.append(row)
+			# Ordena a lista pela entrada mais proxima
+			em_espera.sort(key=lambda x: x[4], reverse=True)
+	if len(em_espera) == 0:
+		em_espera = False
+	return em_espera
 
 
 def noticas(paridade):
@@ -416,12 +414,12 @@ try:
 			leitor.__next__()
 			proximo = buscarMenor(leitor)
 			if proxSinal:
-				if proximo == 'Fim':
+				if proximo:
+					Mensagem(f'EM ESPERA: {proximo[0][1]} | TEMPO: {proximo[0][0]} | HORA: {proximo[0][2]} | DIREÇÃO: {proximo[0][3]}')
+					proxSinal = False
+				else:
 					Mensagem(f'Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}')
 					sys.exit()
-				else:
-					Mensagem(f'EM ESPERA: {proximo[1]} | TEMPO: {proximo[0]} | HORA: {proximo[2]} | DIREÇÃO: {proximo[3]}')
-					proxSinal = False
 
 		with open(log_file) as csv_file:
 			csv_reader = csv.reader(csv_file, delimiter=';')
@@ -429,7 +427,6 @@ try:
 
 			for row in csv_reader:
 				horario = row[2]
-
 				if galeRepete:
 					par = parAntigo
 					direcao = direcaoAntigo
@@ -476,6 +473,6 @@ try:
 								operar(valor_entrada, par, direcao, timeframe, horario, opcao)
 
 		print(datetime.now().strftime('%d/%m/%Y %H:%M:%S'), end='\r')
-		time.sleep(0.5)
+		time.sleep(1)
 except KeyboardInterrupt:
 	exit()
