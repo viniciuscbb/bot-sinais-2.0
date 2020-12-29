@@ -53,13 +53,14 @@ VERIFICA_BOT = config['usar_bot']
 TELEGRAM_ID = config['telegram_id']
 
 
-def Mensagem(mensagem):
+def Mensagem(mensagem, enviar_telegram=False):
 	print(mensagem)
 	if VERIFICA_BOT == 'S':
 		token = config['telegram_token']
 		chatID = TELEGRAM_ID
-		send = f'http://api.telegram.org/bot{token}/sendMessage?chat_id={chatID}&parse_mode=Markdown&text={mensagem}'
-		return requests.get(send)
+		if enviar_telegram:
+			send = f'http://api.telegram.org/bot{token}/sendMessage?chat_id={chatID}&parse_mode=Markdown&text={mensagem}'
+			return requests.get(send)
 
 
 def timestamp_converter():
@@ -96,7 +97,7 @@ def verificarStop(lucroTotal):
 	else:
 		deustop = False
 	if deustop:
-		Mensagem(f' STOP {deustop} BATIDO!!!')
+		Mensagem(f' STOP {deustop} BATIDO!!!', True)
 		sys.exit()
 
 
@@ -107,15 +108,18 @@ def buscarMenor(lst):
 	for row in lst:
 		horario = row[2] + ":00"
 		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds() / 60)
-		if dif < 0:
+		if dif <= 0:
 			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
 			row.append(dif)
 			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
 			em_espera.append(row)
-			# Ordena a lista pela entrada mais proxima
-			em_espera.sort(key=lambda x: x[4], reverse=True)
+
 	if len(em_espera) == 0:
 		em_espera = False
+	else:
+		# Ordena a lista pela entrada mais proxima
+		em_espera.sort(key=lambda x: x[4], reverse=True)
+
 	return em_espera
 
 
@@ -187,8 +191,8 @@ def checkProfit(par, timeframe):
 	all_asset = API.get_all_open_time()
 	profit = API.get_all_profit()
 
-	digital = 0
-	binaria = 0
+	digital = False
+	binaria = False
 
 	if timeframe == 60:
 		return 'binaria'
@@ -200,17 +204,17 @@ def checkProfit(par, timeframe):
 	if all_asset['turbo'][par]['open']:
 		binaria = round(profit[par]["turbo"], 2)
 
-	if binaria < digital:
-		return "digital"
+	if digital or binaria:
+		if binaria < digital:
+			return "digital"
 
-	elif digital < binaria:
-		return "binaria"
+		elif digital < binaria:
+			return "binaria"
 
-	elif digital == binaria:
-		return "digital"
-
+		elif digital == binaria:
+			return "digital"
 	else:
-		"erro"
+		return False
 
 
 def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
@@ -414,6 +418,7 @@ try:
 			proximo = buscarMenor(leitor)
 			if proxSinal:
 				if proximo:
+					Mensagem(f'SINAIS PENDENTES: {len(proximo)}')
 					Mensagem(f'EM ESPERA: {proximo[0][1]} | TEMPO: {proximo[0][0]} | HORA: {proximo[0][2]} | DIREÇÃO: {proximo[0][3]}')
 					proxSinal = False
 				else:
@@ -448,6 +453,10 @@ try:
 
 				if dif == -15:
 					opcao = checkProfit(par, timeframe)
+					if not opcao:
+						Mensagem(f' PARIDADE FECHADA! ABORTANDO ENTRADA!!')
+						time.sleep(1)
+						proxSinal = True
 
 				if dif == -2:
 					impacto, moeda, hora, stts = noticas(par)
