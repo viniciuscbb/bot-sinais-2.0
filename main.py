@@ -97,7 +97,7 @@ def verificarStop(lucroTotal):
 	else:
 		deustop = False
 	if deustop:
-		Mensagem(f' STOP {deustop} BATIDO!!!', True)
+		Mensagem(f' STOP {deustop} BATIDO!!! - Resultado: {lucroTotal}', True)
 		sys.exit()
 
 
@@ -108,12 +108,14 @@ def buscarMenor(lst):
 	for row in lst:
 		horario = row[2] + ":00"
 		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds() / 60)
-		if dif <= 0:
+		# Filtro para excluir os sinais que ja se passaram os horarios
+		if dif < 0:
 			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
 			row.append(dif)
 			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
 			em_espera.append(row)
 
+	# Verifica se a lista tem sinais pendentes para operar, caso contrario retorna false para encerrar o bot
 	if len(em_espera) == 0:
 		em_espera = False
 	else:
@@ -243,7 +245,6 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					pass
 				else:
 					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					verificarStop(lucroTotal)
 					if galeVela == 'S':
 						parAntigo = par
 						direcaoAntigo = dir
@@ -273,6 +274,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							proxSinal = True
 							pass
 					pass
+				verificarStop(lucroTotal)
 				break
 
 	elif opcao == 'binaria':
@@ -298,7 +300,6 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					pass
 				elif resultado == 'loose':
 					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					verificarStop(lucroTotal)
 					if galeVela == 'S':
 						parAntigo = par
 						direcaoAntigo = dir
@@ -327,6 +328,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							proxSinal = True
 							pass
 					pass
+				verificarStop(lucroTotal)
 
 		else:
 			Mensagem('Error')
@@ -372,6 +374,7 @@ def tendenciaEHit(par, timeframe, direcao):
 
 
 def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
+	status = False
 	try:
 		if opcao == 'digital':
 			status, id = API.buy_digital_spot(par, valor_entrada, direcao, timeframe)
@@ -380,13 +383,14 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
 			Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		else:
-			Mensagem('ERRO')
+			Mensagem('ERRO AO REALIZAR ENTRADA!!')
 			time.sleep(1)
 	except:
-		Mensagem('ERRO')
+		Mensagem('ERRO AO REALIZAR ENTRADA!!')
 		time.sleep(1)
 
-	Mensagem(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
+	if status:
+		Mensagem(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
 
 
 API.connect()
@@ -410,7 +414,6 @@ try:
 	while True:
 		timeNow = timestamp_converter()
 		log_file = './lista.csv'
-		verificarStop(lucroTotal)
 
 		with open(log_file) as csv_file:
 			leitor = csv.reader(csv_file, delimiter=';')
@@ -448,15 +451,15 @@ try:
 				dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 				# print(f'{dif} / {horario} / {par} / {direcao} / {timeframe}')
 
-				if dif == -20:
-					tend, hit = tendenciaEHit(par, timeframe, direcao)
-
-				if dif == -15:
+				if dif == -50:
 					opcao = checkProfit(par, timeframe)
 					if not opcao:
 						Mensagem(f' PARIDADE FECHADA! ABORTANDO ENTRADA!!')
 						time.sleep(1)
 						proxSinal = True
+
+				if dif == -10:
+					tend, hit = tendenciaEHit(par, timeframe, direcao)
 
 				if dif == -2:
 					impacto, moeda, hora, stts = noticas(par)
