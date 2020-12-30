@@ -46,7 +46,6 @@ galeVela = config['mgProxSinal']
 galeSinal = config['martingale']
 noticias = config['noticias']
 hitdeVela = config['hitVela']
-proxSinal = True
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
@@ -55,17 +54,16 @@ TELEGRAM_ID = config['telegram_id']
 
 def Mensagem(mensagem, enviar_telegram=False):
 	print(mensagem)
-	if VERIFICA_BOT == 'S':
+	if enviar_telegram == True and VERIFICA_BOT == 'S':
 		token = config['telegram_token']
 		chatID = TELEGRAM_ID
-		if enviar_telegram:
-			send = f'http://api.telegram.org/bot{token}/sendMessage?chat_id={chatID}&parse_mode=Markdown&text={mensagem}'
-			return requests.get(send)
+		send = f'http://api.telegram.org/bot{token}/sendMessage?chat_id={chatID}&parse_mode=Markdown&text={mensagem}'
+		return requests.get(send)
 
 
 def timestamp_converter():
 	hora = datetime.now()
-	tm = tz.gettz('America/Sao Paulo')
+	tm = tz.gettz('America/Recife')
 	hora_atual = hora.astimezone(tm)
 	return hora_atual.strftime('%H:%M:%S')
 
@@ -101,11 +99,14 @@ def verificarStop(lucroTotal):
 		sys.exit()
 
 
-def buscarMenor(lst):
+def buscarMenor():
+	global em_espera
+	arquivo = open('./lista.csv')
+	leitor = csv.reader(arquivo, delimiter=';')
 	timeNow = timestamp_converter()
 	f = '%H:%M:%S'
 	em_espera = []
-	for row in lst:
+	for row in leitor:
 		horario = row[2] + ":00"
 		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds() / 60)
 		# Filtro para excluir os sinais que ja se passaram os horarios
@@ -118,11 +119,15 @@ def buscarMenor(lst):
 	# Verifica se a lista tem sinais pendentes para operar, caso contrario retorna false para encerrar o bot
 	if len(em_espera) == 0:
 		em_espera = False
+		Mensagem(f'Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}')
+		sys.exit()
 	else:
 		# Ordena a lista pela entrada mais proxima
 		em_espera.sort(key=lambda x: x[4], reverse=True)
-
-	return em_espera
+		# Informa quantos sinais restam para serem executados
+		Mensagem(f'SINAIS PENDENTES: {len(em_espera)}')
+		# Informa o próximo sinal a ser executado
+		Mensagem(f'PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
 
 
 def noticas(paridade):
@@ -234,14 +239,14 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					proxSinal = True
+					buscarMenor()
 					pass
 				elif lucro == 0.0:
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> dogi | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					proxSinal = True
+					buscarMenor()
 					pass
 				else:
 					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
@@ -257,7 +262,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						else:
 							valorGaleProxSinal = config['entrada']
 							galeRepete = False
-							proxSinal = True
+							buscarMenor()
 							pass
 
 					elif galeSinal == 'S':
@@ -271,7 +276,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						else:
 							n = 1
 							valorGaleSinal = config['entrada']
-							proxSinal = True
+							buscarMenor()
 							pass
 					pass
 				verificarStop(lucroTotal)
@@ -289,14 +294,14 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					proxSinal = True
+					buscarMenor()
 					pass
 				elif resultado == 'equal':
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> doji | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					proxSinal = True
+					buscarMenor()
 					pass
 				elif resultado == 'loose':
 					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
@@ -311,7 +316,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						else:
 							valorGaleSinal = float(config['entrada'])
 							galeRepete = False
-							proxSinal = True
+							buscarMenor()
 							pass
 
 					elif galeSinal == 'S':
@@ -325,7 +330,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						else:
 							n = 1
 							valorGaleSinal = config['entrada']
-							proxSinal = True
+							buscarMenor()
 							pass
 					pass
 				verificarStop(lucroTotal)
@@ -410,80 +415,63 @@ while True:
 		config['banca_inicial'] = banca()
 		break
 print('Pressione Ctrl+C para sair\n')
+
 try:
+	buscarMenor()
 	while True:
 		timeNow = timestamp_converter()
-		log_file = './lista.csv'
+		print(datetime.now().strftime('%d/%m/%Y %H:%M:%S'), end='\r')
 
-		with open(log_file) as csv_file:
-			leitor = csv.reader(csv_file, delimiter=';')
-			leitor.__next__()
-			proximo = buscarMenor(leitor)
-			if proxSinal:
-				if proximo:
-					Mensagem(f'SINAIS PENDENTES: {len(proximo)}')
-					Mensagem(f'EM ESPERA: {proximo[0][1]} | TEMPO: {proximo[0][0]} | HORA: {proximo[0][2]} | DIREÇÃO: {proximo[0][3]}')
-					proxSinal = False
+		for row in em_espera:
+			horario = row[2]
+			if galeRepete:
+				par = parAntigo
+				direcao = direcaoAntigo
+				timeframe = timeframeAntigo
+				valor_entrada = valorGaleProxSinal
+			else:
+				par = row[1].upper()
+				direcao = row[3].lower()
+				timeframe_retorno = timeFrame(row[0])
+				timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
+				valor_entrada = config['entrada']
+
+			s = horario + ":00"
+			f = '%H:%M:%S'
+			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
+
+			if dif == -50:
+				opcao = checkProfit(par, timeframe)
+				if not opcao:
+					Mensagem(f' PARIDADE FECHADA! ABORTANDO ENTRADA!!')
+					time.sleep(1)
+					buscarMenor()
+
+			if dif == -10:
+				tend, hit = tendenciaEHit(par, timeframe, direcao)
+
+			if dif == -2:
+				impacto, moeda, hora, stts = noticas(par)
+				if stts:
+					Mensagem(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!')
+					time.sleep(1)
+					buscarMenor()
+					pass
 				else:
-					Mensagem(f'Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}')
-					sys.exit()
-
-		with open(log_file) as csv_file:
-			csv_reader = csv.reader(csv_file, delimiter=';')
-			csv_reader.__next__()
-
-			for row in csv_reader:
-				horario = row[2]
-				if galeRepete:
-					par = parAntigo
-					direcao = direcaoAntigo
-					timeframe = timeframeAntigo
-					valor_entrada = valorGaleProxSinal
-				else:
-					par = row[1].upper()
-					direcao = row[3].lower()
-					timeframe_retorno = timeFrame(row[0])
-					timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
-					valor_entrada = config['entrada']
-
-				s = horario + ":00"
-				f = '%H:%M:%S'
-				dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
-				# print(f'{dif} / {horario} / {par} / {direcao} / {timeframe}')
-
-				if dif == -50:
-					opcao = checkProfit(par, timeframe)
-					if not opcao:
-						Mensagem(f' PARIDADE FECHADA! ABORTANDO ENTRADA!!')
+					if tend != direcao:
+						Mensagem(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
 						time.sleep(1)
-						proxSinal = True
-
-				if dif == -10:
-					tend, hit = tendenciaEHit(par, timeframe, direcao)
-
-				if dif == -2:
-					impacto, moeda, hora, stts = noticas(par)
-					if stts:
-						Mensagem(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!')
-						time.sleep(1)
-						proxSinal = True
+						buscarMenor()
 						pass
 					else:
-						if tend != direcao:
-							Mensagem(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
+						if hit:
+							Mensagem(f' HIT DE VELA NA PARIDADE {par}!\n')
 							time.sleep(1)
-							proxSinal = True
+							buscarMenor()
 							pass
 						else:
-							if hit:
-								Mensagem(f' HIT DE VELA NA PARIDADE {par}!\n')
-								time.sleep(1)
-								proxSinal = True
-								pass
-							else:
-								operar(valor_entrada, par, direcao, timeframe, horario, opcao)
+							operar(valor_entrada, par, direcao, timeframe, horario, opcao)
 
-		print(datetime.now().strftime('%d/%m/%Y %H:%M:%S'), end='\r')
-		time.sleep(0.5)
+		time.sleep(1)
 except KeyboardInterrupt:
 	exit()
