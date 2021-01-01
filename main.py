@@ -134,51 +134,55 @@ def noticas(paridade):
 	global noticas
 
 	if noticias == 'S':
-		objeto = json.loads(texto)
+		try:
+			objeto = json.loads(texto)
 
-		# Verifica se o status code é 200 de sucesso
-		if response.status_code != 200 or objeto['success'] != True:
-			print('Erro ao contatar notícias')
+			# Verifica se o status code é 200 de sucesso
+			if response.status_code != 200 or objeto['success'] != True:
+				print('Erro ao contatar notícias')
 
-		# Pega a data atual
-		data = datetime.now()
-		tm = tz.gettz('America/Sao Paulo')
-		data_atual = data.astimezone(tm)
-		data_atual = data_atual.strftime('%Y-%m-%d')
-		tempoAtual = data.astimezone(tm)
-		minutos_lista = tempoAtual.strftime('%H:%M:%S')
+			# Pega a data atual
+			data = datetime.now()
+			tm = tz.gettz('America/Sao Paulo')
+			data_atual = data.astimezone(tm)
+			data_atual = data_atual.strftime('%Y-%m-%d')
+			tempoAtual = data.astimezone(tm)
+			minutos_lista = tempoAtual.strftime('%H:%M:%S')
 
-		# Varre todos o result do JSON
-		for noticia in objeto['result']:
-			# Separa a paridade em duas Ex: AUDUSD separa AUD e USD para comparar os dois
-			paridade1 = paridade[0:3]
-			paridade2 = paridade[3:6]
+			# Varre todos o result do JSON
+			for noticia in objeto['result']:
+				# Separa a paridade em duas Ex: AUDUSD separa AUD e USD para comparar os dois
+				paridade1 = paridade[0:3]
+				paridade2 = paridade[3:6]
 
-			# Pega a paridade, impacto e separa a data da hora da API
-			moeda = noticia['economy']
-			impacto = noticia['impact']
-			atual = noticia['data']
-			data = atual.split(' ')[0]
-			hora = atual.split(' ')[1]
+				# Pega a paridade, impacto e separa a data da hora da API
+				moeda = noticia['economy']
+				impacto = noticia['impact']
+				atual = noticia['data']
+				data = atual.split(' ')[0]
+				hora = atual.split(' ')[1]
 
-			# Verifica se a paridade existe da noticia e se está na data atual
-			if moeda == paridade1 or moeda == paridade2 and data == data_atual:
-				formato = '%H:%M:%S'
-				d1 = datetime.strptime(hora, formato)
-				d2 = datetime.strptime(minutos_lista, formato)
-				dif = (d1 - d2).total_seconds()
-				# Verifica a diferença entre a hora da noticia e a hora da operação
-				minutesDiff = dif / 60
+				# Verifica se a paridade existe da noticia e se está na data atual
+				if moeda == paridade1 or moeda == paridade2 and data == data_atual:
+					formato = '%H:%M:%S'
+					d1 = datetime.strptime(hora, formato)
+					d2 = datetime.strptime(minutos_lista, formato)
+					dif = (d1 - d2).total_seconds()
+					# Verifica a diferença entre a hora da noticia e a hora da operação
+					minutesDiff = dif / 60
 
-				# Verifica se a noticia irá acontencer 30 min antes ou depois da operação
-				if minutesDiff >= -30 and minutesDiff <= 0 or minutesDiff <= 30 and minutesDiff >= 0:
-					if impacto > 1:
-						return impacto, moeda, hora, True
+					# Verifica se a noticia irá acontencer 30 min antes ou depois da operação
+					if minutesDiff >= -30 and minutesDiff <= 0 or minutesDiff <= 30 and minutesDiff >= 0:
+						if impacto > 1:
+							return impacto, moeda, hora, True
+					else:
+						pass
 				else:
 					pass
-			else:
-				pass
-		return 0, 0, 0, False
+			return 0, 0, 0, False
+		except:
+			print('Erro ao verificar notícias!! Filtro não funcionará')
+			return 0, 0, 0, False
 	else:
 		return 0, 0, 0, False
 
@@ -396,6 +400,7 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
 
 	if status:
 		Mensagem(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
+		buscarMenor()
 
 
 API.connect()
@@ -410,8 +415,11 @@ while True:
 		print('>> Conectado com sucesso!\n')
 		print('Verificando os sinais..')
 		if noticias == 'S':
-			response = requests.get("http://botpro.com.br/calendario-economico/")
-			texto = response.content
+			try:
+				response = requests.get("http://botpro.com.br/calendario-economico/")
+				texto = response.content
+			except:
+				print('Erro ao carregar json de notícias!!')
 		config['banca_inicial'] = banca()
 		break
 print('Pressione Ctrl+C para sair\n')
