@@ -95,7 +95,7 @@ def verificarStop(lucroTotal):
 	else:
 		deustop = False
 	if deustop:
-		Mensagem(f' STOP {deustop} BATIDO!!! - Resultado: {lucroTotal}', True)
+		Mensagem(f' STOP {deustop} BATIDO!!! - Resultado: {float(round(lucroTotal, 2))}', True)
 		sys.exit()
 
 
