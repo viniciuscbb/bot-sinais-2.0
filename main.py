@@ -1,7 +1,7 @@
 from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime
 from dateutil import tz
-from threading import Thread
+import threading
 
 import json, sys, requests, configparser, csv, time, os
 
@@ -95,8 +95,14 @@ def verificarStop(lucroTotal):
 	else:
 		deustop = False
 	if deustop:
-		Mensagem(f' STOP {deustop} BATIDO!!! - Resultado: {float(round(lucroTotal, 2))}', True)
-		sys.exit()
+		while True:
+			thread_ativas = threading.active_count()
+			if thread_ativas == 0:
+				Mensagem(f' STOP {deustop} BATIDO!!! - Resultado: {float(round(lucroTotal, 2))}', True)
+				sys.exit()
+			else:
+				time.sleep(60)
+				print(f'Aguardando finalização de {thread_ativas} threads', end='\r')
 
 
 def buscarMenor():
@@ -275,7 +281,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							Mensagem(f' MARTINGALE NIVEL {n} NO PAR {par}..')
 							status, id = API.buy_digital_spot(par, valorGaleSinal, dir, timeframe)
 							n += 1
-							Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
+							threading.Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
 							pass
 						else:
 							n = 1
@@ -329,7 +335,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							Mensagem(f' MARTINGALE NIVEL {n} NO PAR {par}..')
 							status, id = API.buy(valorGaleSinal, par, dir, timeframe)
 							n += 1
-							Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
+							threading.Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
 							pass
 						else:
 							n = 1
@@ -387,10 +393,10 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
 	try:
 		if opcao == 'digital':
 			status, id = API.buy_digital_spot(par, valor_entrada, direcao, timeframe)
-			Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		elif opcao == 'binaria':
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
-			Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		else:
 			Mensagem('ERRO AO REALIZAR ENTRADA!!')
 			time.sleep(1)
