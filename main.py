@@ -2,8 +2,11 @@ from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime
 from dateutil import tz
 import threading
-
 import json, sys, requests, configparser, csv, time, os
+import colorama
+from colorama import Fore
+
+colorama.init(autoreset=True)
 
 
 def banca():
@@ -97,16 +100,17 @@ def verificarStop(lucroTotal):
 	if deustop:
 		while True:
 			thread_ativas = threading.active_count()
-			if thread_ativas == 0:
-				Mensagem(f' STOP {deustop} BATIDO!!! - Resultado: {float(round(lucroTotal, 2))}', True)
+			if thread_ativas == 2:
+				Mensagem(f'{Fore.BLUE}STOP {deustop} BATIDO!!! - RESULTADO: {float(round(lucroTotal, 2))}', True)
 				sys.exit()
 			else:
-				time.sleep(60)
-				print(f'Aguardando finalização de {thread_ativas} threads', end='\r')
+				print(f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
+				time.sleep(0.5)
 
 
 def buscarMenor():
-	global em_espera
+	global em_espera, get_profit
+	get_profit = True
 	arquivo = open('./lista.csv')
 	leitor = csv.reader(arquivo, delimiter=';')
 	timeNow = timestamp_converter()
@@ -122,18 +126,24 @@ def buscarMenor():
 			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
 			em_espera.append(row)
 
-	# Verifica se a lista tem sinais pendentes para operar, caso contrario retorna false para encerrar o bot
+	# Verifica se a lista tem sinais pendentes para operar, caso contrario verifica se ainda tem posicoes abertas e aguarda o encerramento pra finalizar o bot
 	if len(em_espera) == 0:
-		em_espera = False
-		Mensagem(f'Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}')
-		sys.exit()
+		while True:
+			thread_ativas = threading.active_count()
+			if thread_ativas == 2:
+				em_espera = False
+				Mensagem(f'{Fore.GREEN}Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}', True)
+				sys.exit()
+			else:
+				print(f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
+				time.sleep(60)
 	else:
 		# Ordena a lista pela entrada mais proxima
 		em_espera.sort(key=lambda x: x[4], reverse=True)
 		# Informa quantos sinais restam para serem executados
 		Mensagem(f'SINAIS PENDENTES: {len(em_espera)}')
 		# Informa o próximo sinal a ser executado
-		Mensagem(f'PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
+		Mensagem(f'{Fore.BLUE}PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
 
 
 def noticas(paridade):
@@ -204,10 +214,13 @@ def Payout(par, timeframe):
 	return float(d / 100)
 
 
-def checkProfit(par, timeframe):
+def Get_All_Profit():
+	global all_asset, profit
 	all_asset = API.get_all_open_time()
 	profit = API.get_all_profit()
 
+
+def checkProfit(par, timeframe):
 	digital = False
 	binaria = False
 
@@ -249,15 +262,11 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					buscarMenor()
-					pass
 				elif lucro == 0.0:
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> dogi | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					buscarMenor()
-					pass
 				else:
 					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
 					if galeVela == 'S':
@@ -268,12 +277,10 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
 							valorGaleProxSinal = valorGaleSinal
-							pass
+
 						else:
 							valorGaleProxSinal = config['entrada']
 							galeRepete = False
-							buscarMenor()
-							pass
 
 					elif galeSinal == 'S':
 						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
@@ -282,15 +289,14 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							status, id = API.buy_digital_spot(par, valorGaleSinal, dir, timeframe)
 							n += 1
 							threading.Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
-							pass
+
 						else:
 							n = 1
 							valorGaleSinal = config['entrada']
-							buscarMenor()
-							pass
-					pass
-				verificarStop(lucroTotal)
+
 				break
+
+			time.sleep(0.5)
 
 	elif opcao == 'binaria':
 		if status:
@@ -304,15 +310,13 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					buscarMenor()
-					pass
+
 				elif resultado == 'equal':
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
 					Mensagem(f'{id} | {par} -> doji | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					buscarMenor()
-					pass
+
 				elif resultado == 'loose':
 					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
 					if galeVela == 'S':
@@ -322,12 +326,10 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
-							pass
+
 						else:
 							valorGaleSinal = float(config['entrada'])
 							galeRepete = False
-							buscarMenor()
-							pass
 
 					elif galeSinal == 'S':
 						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
@@ -336,14 +338,10 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							status, id = API.buy(valorGaleSinal, par, dir, timeframe)
 							n += 1
 							threading.Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
-							pass
+
 						else:
 							n = 1
 							valorGaleSinal = config['entrada']
-							buscarMenor()
-							pass
-					pass
-				verificarStop(lucroTotal)
 
 		else:
 			Mensagem('Error')
@@ -406,7 +404,6 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
 
 	if status:
 		Mensagem(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
-		buscarMenor()
 
 
 API.connect()
@@ -434,7 +431,8 @@ try:
 	buscarMenor()
 	while True:
 		timeNow = timestamp_converter()
-		print(datetime.now().strftime('%d/%m/%Y %H:%M:%S'), end='\r')
+		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+		print(data_hora, end='\x1b[K\r')
 
 		for row in em_espera:
 			horario = row[2]
@@ -454,12 +452,14 @@ try:
 			f = '%H:%M:%S'
 			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 
-			if dif == -50:
+			if dif == -50 and get_profit == True:
+				get_profit = False
+				Get_All_Profit()
+
+			if dif == -30:
 				opcao = checkProfit(par, timeframe)
 				if not opcao:
-					Mensagem(f' PARIDADE FECHADA! ABORTANDO ENTRADA!!')
-					time.sleep(1)
-					buscarMenor()
+					Mensagem(f' PARIDADE {par} FECHADA!!\n')
 
 			if dif == -10:
 				tend, hit = tendenciaEHit(par, timeframe, direcao)
@@ -467,25 +467,22 @@ try:
 			if dif == -2:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
-					Mensagem(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!')
-					time.sleep(1)
-					buscarMenor()
-					pass
+					Mensagem(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
 				else:
 					if tend != direcao:
 						Mensagem(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
-						time.sleep(1)
-						buscarMenor()
-						pass
+
 					else:
 						if hit:
 							Mensagem(f' HIT DE VELA NA PARIDADE {par}!\n')
-							time.sleep(1)
-							buscarMenor()
-							pass
+
 						else:
 							operar(valor_entrada, par, direcao, timeframe, horario, opcao)
 
+			if dif > 0:
+				buscarMenor()
+				break
+		verificarStop(lucroTotal)
 		time.sleep(1)
 except KeyboardInterrupt:
 	exit()
