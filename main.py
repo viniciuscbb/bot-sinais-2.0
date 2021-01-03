@@ -2,20 +2,36 @@ from iqoptionapi.stable_api import IQ_Option
 from datetime import datetime
 from dateutil import tz
 import threading
-import json, sys, requests, configparser, csv, time, os
+import json, sys, requests, configparser, csv, time, os, telepot
 import colorama
 from colorama import Fore
 
 colorama.init(autoreset=True)
 
 
+def Total_Operacoes(lucro):
+	global total_operacoes, vitorias, derrotas, total_porcentagem
+	if lucro > 0:
+		vitorias += 1
+	else:
+		derrotas += 1
+	total_operacoes = vitorias + derrotas
+	total_porcentagem = int(vitorias / total_operacoes * 100)
+
+
 def banca():
-	return API.get_balance()
+	global account_type, account_balance, valor_da_banca
+	account_type = config['conta']
+	valor_da_banca = API.get_balance()
+	account_balance = '${:,.2f}'.format(valor_da_banca) if API.get_currency() == 'USD' else 'R${:,.2f}'.format(valor_da_banca)
 
 
 def configuracao():
+	global vitorias, derrotas
 	arquivo = configparser.RawConfigParser()
 	arquivo.read('config.txt')
+	vitorias = 0
+	derrotas = 0
 
 	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha')}
 
@@ -55,13 +71,15 @@ VERIFICA_BOT = config['usar_bot']
 TELEGRAM_ID = config['telegram_id']
 
 
-def Mensagem(mensagem, enviar_telegram=False):
-	print(mensagem)
-	if enviar_telegram == True and VERIFICA_BOT == 'S':
+def Mensagem(mensagem):
+	if VERIFICA_BOT == 'S':
 		token = config['telegram_token']
 		chatID = TELEGRAM_ID
-		send = f'http://api.telegram.org/bot{token}/sendMessage?chat_id={chatID}&parse_mode=Markdown&text={mensagem}'
-		return requests.get(send)
+		bot = telepot.Bot(token)
+		try:
+			bot.sendMessage(chatID, mensagem)
+		except:
+			print(f'{Fore.RED}ERRO AO ENVIAR MENSAGEM AO TELEGRAM!!')
 
 
 def timestamp_converter():
@@ -90,7 +108,7 @@ def timeFrame(timeframe):
 		return 'erro'
 
 
-def verificarStop(lucroTotal):
+def verificarStop():
 	if lucroTotal >= abs(float(config['stop_win'])):
 		deustop = 'WIN'
 	elif lucroTotal <= (abs(float(config['stop_loss'])) * -1.0):
@@ -101,11 +119,16 @@ def verificarStop(lucroTotal):
 		while True:
 			thread_ativas = threading.active_count()
 			if thread_ativas == 2:
-				Mensagem(f'{Fore.BLUE}STOP {deustop} BATIDO!!! - RESULTADO: {float(round(lucroTotal, 2))}', True)
+				banca()
+				mensagem = f'STOP {deustop} BATIDO!!! - RESULTADO: {float(round(lucroTotal, 2))}\n'
+				mensagem += f'Operações: {total_operacoes} | Vencedoras: {vitorias} | Perdedoras: {derrotas}\nAssertividade: {total_porcentagem}%\n'
+				mensagem += f"Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}"
+				print(f'{Fore.BLUE}{mensagem}')
+				Mensagem(mensagem)
 				sys.exit()
 			else:
 				print(f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
-				time.sleep(0.5)
+				time.sleep(5)
 
 
 def buscarMenor():
@@ -132,7 +155,12 @@ def buscarMenor():
 			thread_ativas = threading.active_count()
 			if thread_ativas == 2:
 				em_espera = False
-				Mensagem(f'{Fore.GREEN}Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}', True)
+				banca()
+				mensagem = f'Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}\n'
+				mensagem += f'Operações: {total_operacoes} | Vencedoras: {vitorias} | Perdedoras: {derrotas}\n Assertividade: {total_porcentagem}%\n'
+				mensagem += f"Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}"
+				print(f'{Fore.GREEN}{mensagem}')
+				Mensagem(mensagem)
 				sys.exit()
 			else:
 				print(f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
@@ -141,9 +169,9 @@ def buscarMenor():
 		# Ordena a lista pela entrada mais proxima
 		em_espera.sort(key=lambda x: x[4], reverse=True)
 		# Informa quantos sinais restam para serem executados
-		Mensagem(f'SINAIS PENDENTES: {len(em_espera)}')
+		print(f'SINAIS PENDENTES: {len(em_espera)}')
 		# Informa o próximo sinal a ser executado
-		Mensagem(f'{Fore.BLUE}PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
+		print(f'{Fore.BLUE}PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
 
 
 def noticas(paridade):
@@ -216,8 +244,11 @@ def Payout(par, timeframe):
 
 def Get_All_Profit():
 	global all_asset, profit
-	all_asset = API.get_all_open_time()
-	profit = API.get_all_profit()
+	try:
+		all_asset = API.get_all_open_time()
+		profit = API.get_all_profit()
+	except:
+		print(f'{Fore.RED}Erro ao obter profit!!')
 
 
 def checkProfit(par, timeframe):
@@ -255,20 +286,21 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			resultado, lucro = API.check_win_digital_v2(id)
 
 			if resultado:
+				entrou_gale = False
 				lucroTotal += lucro
 
 				if lucro > 0:
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
-					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
+					print(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
 				elif lucro == 0.0:
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
-					Mensagem(f'{id} | {par} -> dogi | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
+					print(f'{id} | {par} -> dogi | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
 				else:
-					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
+					print(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
 					if galeVela == 'S':
 						parAntigo = par
 						direcaoAntigo = dir
@@ -285,7 +317,8 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					elif galeSinal == 'S':
 						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if n <= int(config['niveis']):
-							Mensagem(f' MARTINGALE NIVEL {n} NO PAR {par}..')
+							entrou_gale = True
+							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
 							status, id = API.buy_digital_spot(par, valorGaleSinal, dir, timeframe)
 							n += 1
 							threading.Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
@@ -293,7 +326,8 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						else:
 							n = 1
 							valorGaleSinal = config['entrada']
-
+				if not entrou_gale:
+					Total_Operacoes(lucro)
 				break
 
 			time.sleep(0.5)
@@ -304,21 +338,22 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 
 			if resultado:
 				lucroTotal += lucro
+				entrou_gale = False
 
 				if resultado == 'win':
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
-					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
+					print(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
 
 				elif resultado == 'equal':
 					n = 1
 					valorGaleSinal = config['entrada']
 					valor_entrada = float(config['entrada'])
-					Mensagem(f'{id} | {par} -> doji | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
+					print(f'{id} | {par} -> doji | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
 
 				elif resultado == 'loose':
-					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
+					print(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
 					if galeVela == 'S':
 						parAntigo = par
 						direcaoAntigo = dir
@@ -334,7 +369,8 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					elif galeSinal == 'S':
 						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if n <= int(config['niveis']):
-							Mensagem(f' MARTINGALE NIVEL {n} NO PAR {par}..')
+							entrou_gale = True
+							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
 							status, id = API.buy(valorGaleSinal, par, dir, timeframe)
 							n += 1
 							threading.Thread(target=entradas, args=(status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
@@ -342,9 +378,11 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						else:
 							n = 1
 							valorGaleSinal = config['entrada']
+				if not entrou_gale:
+					Total_Operacoes(lucro)
 
 		else:
-			Mensagem('Error')
+			print('Error')
 
 
 def tendenciaEHit(par, timeframe, direcao):
@@ -396,14 +434,14 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
 			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		else:
-			Mensagem('ERRO AO REALIZAR ENTRADA!!')
+			print('ERRO AO REALIZAR ENTRADA!!')
 			time.sleep(1)
 	except:
-		Mensagem('ERRO AO REALIZAR ENTRADA!!')
+		print('ERRO AO REALIZAR ENTRADA!!')
 		time.sleep(1)
 
 	if status:
-		Mensagem(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
+		print(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
 
 
 API.connect()
@@ -416,17 +454,16 @@ while True:
 	else:
 		Clear_Screen()
 		print('>> Conectado com sucesso!\n')
-		print('Verificando os sinais..')
 		if noticias == 'S':
 			try:
 				response = requests.get("http://botpro.com.br/calendario-economico/")
 				texto = response.content
 			except:
 				print('Erro ao carregar json de notícias!!')
-		config['banca_inicial'] = banca()
+		banca()
+		config['banca_inicial'] = valor_da_banca
+		print(f"{Fore.LIGHTBLUE_EX}Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}")
 		break
-print('Pressione Ctrl+C para sair\n')
-
 try:
 	buscarMenor()
 	while True:
@@ -459,22 +496,20 @@ try:
 			if dif == -30:
 				opcao = checkProfit(par, timeframe)
 				if not opcao:
-					Mensagem(f' PARIDADE {par} FECHADA!!\n')
-
-			if dif == -10:
-				tend, hit = tendenciaEHit(par, timeframe, direcao)
+					print(f' PARIDADE {par} FECHADA!!\n')
 
 			if dif == -2:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
-					Mensagem(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
+					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
 				else:
+					tend, hit = tendenciaEHit(par, timeframe, direcao)
 					if tend != direcao:
-						Mensagem(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
+						print(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
 
 					else:
 						if hit:
-							Mensagem(f' HIT DE VELA NA PARIDADE {par}!\n')
+							print(f' HIT DE VELA NA PARIDADE {par}!\n')
 
 						else:
 							operar(valor_entrada, par, direcao, timeframe, horario, opcao)
@@ -482,7 +517,7 @@ try:
 			if dif > 0:
 				buscarMenor()
 				break
-		verificarStop(lucroTotal)
+		verificarStop()
 		time.sleep(1)
 except KeyboardInterrupt:
 	exit()
