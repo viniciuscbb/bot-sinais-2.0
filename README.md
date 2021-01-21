@@ -22,6 +22,3 @@ M5;EURJPY;11:05;PUT;
 - Analisador de notícias (não opera com notícias de 2 ou 3 touros na moeda).
 - Hit de vela (não opera se houver hit de vela no gráfico).
 - Bot telegram.
-
-**_Caso precise de um catalogador de traders, acesse:_**
-[IQ Top Traders](http://iqtoptraders.ga/)
