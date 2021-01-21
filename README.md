@@ -1,6 +1,9 @@
 # bot-sinais-2.0
 Bot para operar na IQ Option seguindo uma lista de sinais com threads
 
+UTILIZE A API DO FARIA:
+https://github.com/iqoptionapi/iqoptionapi
+
 # Configurações
 1. Abra o config.txt e utilize S ou N para as funções desejadas
 2. Abra o lista.csv como bloco de notas e adicione os sinais a partir da segunda linha (Não deixe nenhuma linha em branco no final).
