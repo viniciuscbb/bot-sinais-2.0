@@ -385,43 +385,27 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			print('Error')
 
 
-def tendenciaEHit(par, timeframe, direcao):
-	if analisarTendencia == 'S' and hitdeVela == 'N':
-		velas = API.get_candles(par, (int(timeframe) * 60), 20, time.time())
-		ultimo = round(velas[0]['close'], 4)
-		primeiro = round(velas[-1]['close'], 4)
-		diferenca = abs(round(((ultimo - primeiro) / primeiro) * 100, 3))
-		tendencia = "call" if ultimo < primeiro and diferenca > 0.01 else "put" if ultimo > primeiro and diferenca > 0.01 else direcao
-		return tendencia, False
-	elif analisarTendencia == 'N' and hitdeVela == 'S':
-		velas = API.get_candles(par, (int(timeframe) * 60), 5, time.time())
-		velas[0] = 'r' if velas[0]['open'] > velas[0]['close'] else 'g'
-		velas[1] = 'r' if velas[1]['open'] > velas[1]['close'] else 'g'
-		velas[2] = 'r' if velas[2]['open'] > velas[2]['close'] else 'g'
-		velas[3] = 'r' if velas[3]['open'] > velas[3]['close'] else 'g'
-		hit = velas[0] + velas[1] + velas[2] + velas[3]
-		if hit == 'rrrr' or hit == 'gggg':
-			return direcao, True
-		else:
-			return direcao, False
-	elif analisarTendencia == 'S' and hitdeVela == 'S':
-		velas = API.get_candles(par, (int(timeframe) * 60), 20, time.time())
-		ultimo = round(velas[0]['close'], 4)
-		primeiro = round(velas[-1]['close'], 4)
-		diferenca = abs(round(((ultimo - primeiro) / primeiro) * 100, 3))
-		tendencia = "call" if ultimo < primeiro and diferenca > 0.01 else "put" if ultimo > primeiro and diferenca > 0.01 else direcao
+def Verificar_Tendencia(par, dir):
+	velas = API.get_candles(par, 60, 9, time.time())
+	ultimo = round(velas[0]['close'], 4)
+	primeiro = round(velas[-1]['close'], 4)
+	diferenca = abs(round(((ultimo - primeiro) / primeiro) * 100, 3))
+	tendencia = "call" if ultimo < primeiro and diferenca > 0.01 else "put" if ultimo > primeiro and diferenca > 0.01 else dir
 
-		velas[15] = 'r' if velas[15]['open'] > velas[15]['close'] else 'g'
-		velas[16] = 'r' if velas[16]['open'] > velas[16]['close'] else 'g'
-		velas[17] = 'r' if velas[17]['open'] > velas[17]['close'] else 'g'
-		velas[18] = 'r' if velas[18]['open'] > velas[18]['close'] else 'g'
-		hit = velas[15] + velas[16] + velas[17] + velas[18]
-		if hit == 'rrrr' or hit == 'gggg':
-			return tendencia, True
-		else:
-			return tendencia, False
+	return tendencia
+
+
+def Filtro_Hit_Vela(par):
+	velas = API.get_candles(par, 60, 5, time.time())
+	velas[0] = 'r' if velas[0]['open'] > velas[0]['close'] else 'g'
+	velas[1] = 'r' if velas[1]['open'] > velas[1]['close'] else 'g'
+	velas[2] = 'r' if velas[2]['open'] > velas[2]['close'] else 'g'
+	velas[3] = 'r' if velas[3]['open'] > velas[3]['close'] else 'g'
+	hit = velas[0] + velas[1] + velas[2] + velas[3]
+	if hit == 'rrrr' or hit == 'gggg':
+		return True
 	else:
-		return direcao, False
+		return False
 
 
 def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
@@ -503,7 +487,16 @@ try:
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
 				else:
-					tend, hit = tendenciaEHit(par, timeframe, direcao)
+					if analisarTendencia == 'S':
+						tend = Verificar_Tendencia(par, direcao)
+					else:
+						tend = direcao
+
+					if hitdeVela == 'S':
+						hit = Filtro_Hit_Vela(par)
+					else:
+						hit = False
+
 					if tend != direcao:
 						print(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
 
