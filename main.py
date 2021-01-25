@@ -18,6 +18,8 @@ def Total_Operacoes(lucro):
 	total_operacoes = vitorias + derrotas
 	total_porcentagem = int(vitorias / total_operacoes * 100)
 
+	Trailing_Stop(lucro)
+
 
 def banca():
 	global account_type, account_balance, valor_da_banca
@@ -33,7 +35,7 @@ def configuracao():
 	vitorias = 0
 	derrotas = 0
 
-	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha')}
+	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor')}
 
 
 def Clear_Screen():
@@ -51,20 +53,25 @@ print('=========================================\n|             BOT SINAIS 2.0  
 print('>> Conectando..\n')
 API = IQ_Option(email, senha)
 
-config = configuracao()
 global galeRepete, lucroTotal, parAntigo, direcaoAntigo, timeframeAntigo, valor_entrada, galeSinalRepete, proxSinal
 galeRepete = False
 parAntigo = ''
 direcaoAntigo = ''
 timeframeAntigo = ''
 lucroTotal = 0
-valorGaleProxSinal = config['entrada']
-valor_entrada = config['entrada']
+novo_stop_loss = 0
+trailing_ativo = False
+valorGaleProxSinal = float(config['entrada'])
+valor_entrada = float(config['entrada'])
 analisarTendencia = config['analisarTendencia']
 galeVela = config['mgProxSinal']
 galeSinal = config['martingale']
 noticias = config['noticias']
 hitdeVela = config['hitVela']
+trailing_stop = config['trailing_stop']
+trailing_stop_valor = float(config['trailing_stop_valor'])
+stop_win = abs(float(config['stop_win']))
+stop_loss = float(config['stop_loss']) * -1.0
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
@@ -109,9 +116,9 @@ def timeFrame(timeframe):
 
 
 def verificarStop():
-	if lucroTotal >= abs(float(config['stop_win'])):
+	if lucroTotal >= stop_win:
 		deustop = 'WIN'
-	elif lucroTotal <= (abs(float(config['stop_loss'])) * -1.0):
+	elif lucroTotal <= stop_loss:
 		deustop = 'LOSS'
 	else:
 		deustop = False
@@ -129,6 +136,19 @@ def verificarStop():
 			else:
 				print(f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
 				time.sleep(5)
+
+
+def Trailing_Stop(lucro):
+	global stop_loss, novo_stop_loss
+	if lucroTotal >= trailing_stop_valor:
+		trailing_ativo = True
+	else:
+		trailing_ativo = False
+
+	if trailing_ativo and lucro > 0:
+		novo_stop_loss += valor_entrada
+		stop_loss = novo_stop_loss
+		print(f'{Fore.GREEN}Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
 
 
 def buscarMenor():
