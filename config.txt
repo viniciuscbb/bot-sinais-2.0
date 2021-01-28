@@ -1,21 +1,27 @@
 [GERAL]
-entrada = 2
-conta = REAL
+entrada = 5
+conta = PRACTICE
 # PRACTICE / REAL
 
-stop_win = 5
-stop_loss = 25
+stop_win = 50
+stop_loss = 50
+trailing_stop = S
+trailing_stop_valor = 25
 
 martingale = S
 mgProxSinal = N
 valorGale = 2.3
 niveis = 2
 
-analisarTendencia = S
-noticias = S
-hitVela = S
+analisarTendencia = N
+noticias = N
+hitVela = N
 
 [telegram]
 telegram_token = TOKEN
 telegram_id = ID
 usar_bot = N
+
+[CONTA]
+email = seu email
+senha = sua senha

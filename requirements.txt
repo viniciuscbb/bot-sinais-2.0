@@ -1,0 +1,5 @@
+git+git://github.com/iqoptionapi/iqoptionapi.git
+datetime
+python-dateutil
+colorama
+telepot
