@@ -504,7 +504,7 @@ try:
 				if not opcao:
 					print(f' PARIDADE {par} FECHADA!!\n')
 
-			if dif >= -2 and dif <= 0:
+			if dif >= -2 and dif < 0:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
