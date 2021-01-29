@@ -495,16 +495,16 @@ try:
 			f = '%H:%M:%S'
 			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 
-			if dif == -50 and get_profit == True:
+			if (dif >= -52 and dif <= -50) and get_profit == True:
 				get_profit = False
 				Get_All_Profit()
 
-			if dif == -30:
+			if dif >= -32 and dif <= -30:
 				opcao = checkProfit(par, timeframe)
 				if not opcao:
 					print(f' PARIDADE {par} FECHADA!!\n')
 
-			if dif == -2:
+			if dif >= -2 and dif <= 0:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
