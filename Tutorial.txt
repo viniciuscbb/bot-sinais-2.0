@@ -1,5 +1,5 @@
-1- abra o config.txt e utilize S ou N para as funções desejadas
+1- abra o config.txt e realize as configurações.
 2 - abra o lista.csv como bloco de notas e adicione os sinais a partir da segunda linha (Não deixe nenhuma linha em branco no final).
-3 - execute o main.py com o python, digite email e senha da IQ e seja feliz.
+3 - execute o main.py com o python.
 
 Feito por Vínicius Nunes (@viniciuscbb).
