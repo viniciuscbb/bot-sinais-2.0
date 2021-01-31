@@ -498,16 +498,18 @@ try:
 			if (dif >= -52 and dif <= -50) and get_profit == True:
 				get_profit = False
 				Get_All_Profit()
+				paridades_fechadas = []
 
 			if dif >= -32 and dif <= -30:
 				opcao = checkProfit(par, timeframe)
 				if not opcao:
-					print(f' PARIDADE {par} FECHADA!!\n')
+					paridades_fechadas.append(par)
 
 			if dif >= -2 and dif < 0:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
+					time.sleep(2)
 				else:
 					if analisarTendencia == 'S':
 						tend = Verificar_Tendencia(par, direcao)
@@ -521,13 +523,18 @@ try:
 
 					if tend != direcao:
 						print(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
+						time.sleep(2)
 
 					else:
 						if hit:
 							print(f' HIT DE VELA NA PARIDADE {par}!\n')
+							time.sleep(2)
 
-						else:
+						elif par not in paridades_fechadas:
 							operar(valor_entrada, par, direcao, timeframe, horario, opcao)
+						else:
+							print(f'PARIDADE {par} FECHADA!')
+							time.sleep(2)
 
 			if dif > 0:
 				buscarMenor()
