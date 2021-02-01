@@ -20,3 +20,4 @@ M5;EURJPY;11:05;PUT;
 - Analisador de notícias (não opera com notícias de 2 ou 3 touros na moeda).
 - Hit de vela (não opera se houver hit de vela no gráfico).
 - Bot telegram.
+- Filtro de payout

@@ -37,7 +37,7 @@ def configuracao():
 	total_operacoes = 0
 	total_porcentagem = 0
 
-	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor')}
+	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout')}
 
 
 def Clear_Screen():
@@ -74,6 +74,7 @@ trailing_stop = config['trailing_stop']
 trailing_stop_valor = float(config['trailing_stop_valor'])
 stop_win = abs(float(config['stop_win']))
 stop_loss = float(config['stop_loss']) * -1.0
+payout_minimo = int(config['payout_minimo'])
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
@@ -261,7 +262,7 @@ def Payout(par, timeframe):
 			break
 		time.sleep(1)
 	API.unsubscribe_strike_list(par, timeframe)
-	return float(d / 100)
+	return d
 
 
 def Get_All_Profit():
@@ -277,27 +278,27 @@ def checkProfit(par, timeframe):
 	digital = False
 	binaria = False
 
-	if timeframe == 60:
-		return 'binaria'
+	if timeframe > 15:
+		binaria = int(profit[par]["turbo"] * 100)
+		return "binaria", binaria
 
 	if all_asset['digital'][par]['open']:
-		digital = Payout(par, timeframe)
-		digital = round(digital, 2)
+		digital = int(Payout(par, timeframe))
 
 	if all_asset['turbo'][par]['open']:
-		binaria = round(profit[par]["turbo"], 2)
+		binaria = int(profit[par]["turbo"] * 100)
 
 	if digital or binaria:
 		if binaria < digital:
-			return "digital"
+			return "digital", digital
 
 		elif digital < binaria:
-			return "binaria"
+			return "binaria", binaria
 
 		elif digital == binaria:
-			return "digital"
+			return "binaria", binaria
 	else:
-		return False
+		return False, 0
 
 
 def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
@@ -430,7 +431,7 @@ def Filtro_Hit_Vela(par):
 		return False
 
 
-def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
+def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 	status = False
 	try:
 		if opcao == 'digital':
@@ -447,7 +448,7 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao):
 		time.sleep(1)
 
 	if status:
-		print(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe}\n\n')
+		print(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%\n\n')
 
 
 API.connect()
@@ -501,7 +502,7 @@ try:
 				paridades_fechadas = []
 
 			if dif >= -32 and dif <= -30:
-				opcao = checkProfit(par, timeframe)
+				opcao, payout = checkProfit(par, timeframe)
 				if not opcao:
 					paridades_fechadas.append(par)
 
@@ -530,10 +531,13 @@ try:
 							print(f' HIT DE VELA NA PARIDADE {par}!\n')
 							time.sleep(2)
 
-						elif par not in paridades_fechadas:
-							operar(valor_entrada, par, direcao, timeframe, horario, opcao)
+						elif par not in paridades_fechadas and payout >= payout_minimo:
+							operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout)
 						else:
-							print(f'PARIDADE {par} FECHADA!')
+							if par in paridades_fechadas:
+								print(f' PARIDADE {par} FECHADA!\n')
+							else:
+								print(' PAYOUT ABAIXO DO MINIMO ESTABELECIDO!\n')
 							time.sleep(2)
 
 			if dif > 0:
