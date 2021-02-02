@@ -7,6 +7,7 @@ stop_win = 50
 stop_loss = 50
 trailing_stop = S
 trailing_stop_valor = 25
+payout = 80
 
 martingale = S
 mgProxSinal = N

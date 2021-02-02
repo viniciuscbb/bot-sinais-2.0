@@ -16,9 +16,11 @@ M5;EURJPY;11:05;PUT;
 
 # Funções
 - Stop wins e loss.
+- Trailing stop
 - MartinGale próxima vela.
 - MartinGale próximo sinal.
 - Analisador de tendência (não opera contra tendência).
 - Analisador de notícias (não opera com notícias de 2 ou 3 touros na moeda).
 - Hit de vela (não opera se houver hit de vela no gráfico).
 - Bot telegram.
+- Filtro de payout
