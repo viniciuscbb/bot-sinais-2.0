@@ -277,6 +277,7 @@ def Get_All_Profit():
 def checkProfit(par, timeframe):
 	digital = False
 	binaria = False
+	turbo = False
 
 	if timeframe > 15:
 		binaria = int(profit[par]["turbo"] * 100)
@@ -286,17 +287,23 @@ def checkProfit(par, timeframe):
 		digital = int(Payout(par, timeframe))
 
 	if all_asset['turbo'][par]['open']:
-		binaria = int(profit[par]["turbo"] * 100)
+		turbo = int(profit[par]["turbo"] * 100)
 
-	if digital or binaria:
-		if binaria < digital:
+	if all_asset['binary'][par]['open']:
+		binaria = int(profit[par]["binary"] * 100)
+
+	if digital or turbo:
+		if turbo < digital:
 			return "digital", digital
 
-		elif digital < binaria:
-			return "binaria", binaria
+		elif digital < turbo:
+			return "binaria", turbo
 
-		elif digital == binaria:
-			return "binaria", binaria
+		elif digital == turbo:
+			return "binaria", turbo
+
+	elif binaria:
+		return "binaria", binaria
 	else:
 		return False, 0
 
@@ -405,7 +412,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					Total_Operacoes(lucro)
 
 		else:
-			print('Error')
+			print(f'{Fore.RED}ERRO AO REALIZAR OPERAÇÃO!!\n')
 
 
 def Verificar_Tendencia(par, dir):
