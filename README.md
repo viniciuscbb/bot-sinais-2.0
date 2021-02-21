@@ -17,6 +17,7 @@ M5;EURJPY;11:05;PUT;
 # Funções
 - Stop wins e loss.
 - Trailing stop
+- Trader Timer Zone
 - MartinGale próxima vela.
 - MartinGale próximo sinal.
 - Analisador de tendência (não opera contra tendência).
