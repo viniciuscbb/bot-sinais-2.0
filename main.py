@@ -20,12 +20,14 @@ headers = {
 
 colorama.init(autoreset=True)
 
+
 def horaAtual():
     data = datetime.now()
     tm = tz.gettz('America/Sao Paulo')
     tempoAtual = data.astimezone(tm)
     horaAgora = tempoAtual.strftime('%H:%M:%S')
     return horaAgora
+
 
 def timerzone(timeframe):
     if traderTimerZone == 'S':
@@ -126,7 +128,7 @@ payout_minimo = int(config['payout_minimo'])
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
 TELEGRAM_ID = config['telegram_id']
-
+Clear_Screen()
 print(f'''{Fore.BLUE}
 ██████╗░░█████╗░████████╗░░░░░░███████╗██████╗░███████╗███████╗  ██████╗░░░░░█████╗░
 ██╔══██╗██╔══██╗╚══██╔══╝░░░░░░██╔════╝██╔══██╗██╔════╝██╔════╝  ╚════██╗░░░██╔══██╗
@@ -236,8 +238,7 @@ def buscarMenor():
 	em_espera = []
 	for row in leitor:
 		horario = row[2] + ":00"
-		dif = int((datetime.strptime(timeNow, f) -
-		          datetime.strptime(horario, f)).total_seconds() / 60)
+		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds() / 60)
 		# Filtro para excluir os sinais que ja se passaram os horarios
 		if dif < 0:
 			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
@@ -270,6 +271,7 @@ def buscarMenor():
 		# Informa o próximo sinal a ser executado
 		print(f'{Fore.BLUE}PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
 		Mensagem(f'SINAIS PENDENTES: {len(em_espera)}\nPROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
+
 
 def noticas(paridade):
 	global noticas
@@ -366,24 +368,6 @@ def checkProfit(par, timeframe):
 	if all_asset['binary'][par]['open']:
 		binaria = int(profit[par]["binary"] * 100)
 
-	if digital or turbo:
-		if turbo < digital:
-			return "digital", digital
-
-		elif digital < turbo:
-			return "binaria", turbo
-
-		elif digital == turbo:
-			return "binaria", turbo
-
-	elif binaria:
-		return "binaria", binaria
-	else:
-		return False, 0
-
-	if all_asset['binary'][par]['open']:
-		binaria = int(profit[par]["binary"] * 100)
-
 	try:
 		if binaria > digital and timeframe > 5:
 			return "binaria", binaria
@@ -391,13 +375,14 @@ def checkProfit(par, timeframe):
 		if digital >= binaria and timeframe > 5:
 			return "digital", digital
 
-		if digital >= turbo and timeframe <=5:
+		if digital >= turbo and timeframe <= 5:
 			return "digital", digital
 
-		if turbo > digital and timeframe <=5:
+		if turbo > digital and timeframe <= 5:
 			return "binaria", turbo
 	except:
             return False, 0
+
 
 def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 	global galeRepete, lucroTotal, parAntigo, direcaoAntigo, timeframeAntigo, valor_entrada, proxSinal, valorGaleProxSinal
@@ -430,8 +415,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						parAntigo = par
 						direcaoAntigo = dir
 						timeframeAntigo = timeframe
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
 							valorGaleProxSinal = valorGaleSinal
@@ -441,8 +425,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							galeRepete = False
 
 					elif galeSinal == 'S':
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if n <= int(config['niveis']):
 							entrou_gale = True
 							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
@@ -489,8 +472,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						parAntigo = par
 						direcaoAntigo = dir
 						timeframeAntigo = timeframe
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
 
@@ -499,8 +481,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							galeRepete = False
 
 					elif galeSinal == 'S':
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if n <= int(config['niveis']):
 							entrou_gale = True
 							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
@@ -521,7 +502,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 
 
 def Verificar_Tendencia(par, dir):
-	velas = API.get_candles(par, 60, 9, time.time())
+	velas = API.get_candles(par, 60, 20, time.time())
 	ultimo = round(velas[0]['close'], 4)
 	primeiro = round(velas[-1]['close'], 4)
 	diferenca = abs(round(((ultimo - primeiro) / primeiro) * 100, 3))
@@ -530,8 +511,8 @@ def Verificar_Tendencia(par, dir):
 	return tendencia
 
 
-def Filtro_Hit_Vela(par):
-	velas = API.get_candles(par, 60, 5, time.time())
+def Filtro_Hit_Vela(par, timeframe):
+	velas = API.get_candles(par, (60 * timeframe), 5, time.time())
 	velas[0] = 'r' if velas[0]['open'] > velas[0]['close'] else 'g'
 	velas[1] = 'r' if velas[1]['open'] > velas[1]['close'] else 'g'
 	velas[2] = 'r' if velas[2]['open'] > velas[2]['close'] else 'g'
@@ -548,12 +529,10 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 	try:
 		if opcao == 'digital':
 			status, id = API.buy_digital_spot(par, valor_entrada, direcao, timeframe)
-			threading.Thread(target=entradas, args=(status, id, par, direcao,
-			                 timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		elif opcao == 'binaria':
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
-			threading.Thread(target=entradas, args=(status, id, par, direcao,
-			                 timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		else:
 			print('ERRO AO REALIZAR ENTRADA!!')
 			time.sleep(1)
@@ -565,6 +544,7 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 		print(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%\n\n')
 		Mensagem(f'INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%')
 
+
 API.connect()
 API.change_balance(config['conta'])
 while True:
@@ -573,7 +553,6 @@ while True:
 		input('   Aperte enter para sair')
 		sys.exit()
 	else:
-		Clear_Screen()
 		print(f'>> Conectado com sucesso!\n {Fore.RED}VENDA DO BOT PROIBIDA!!!\n')
 		banca()
 		config['banca_inicial'] = valor_da_banca
@@ -627,7 +606,7 @@ try:
 							tend = direcao
 
 						if hitdeVela == 'S':
-							hit = Filtro_Hit_Vela(par)
+							hit = Filtro_Hit_Vela(par, timeframe)
 						else:
 							hit = False
 
