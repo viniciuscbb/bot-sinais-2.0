@@ -16,13 +16,14 @@ niveis = 2
 
 analisarTendencia = N
 noticias = N
+timerzone = N
 hitVela = N
 
 [telegram]
-telegram_token = TOKEN
-telegram_id = ID
+telegram_token = YOUR BOT TOKEN
+telegram_id = YOUR TELEGRAM ID
 usar_bot = N
 
 [CONTA]
-email = seu email
-senha = sua senha
+email = YOUR E-MAIL IQ OPTION
+senha = YOUR PASSWORD IQ OPTION
