@@ -217,13 +217,8 @@ def verificarStop():
 
 def Trailing_Stop(lucro):
 	global stop_loss, novo_stop_loss
-	if lucroTotal >= trailing_stop_valor:
-		trailing_ativo = True
-	else:
-		trailing_ativo = False
-
-	if trailing_ativo and lucro > 0:
-		novo_stop_loss += valor_entrada
+	if lucroTotal >= trailing_stop_valor and lucro > 0:
+		novo_stop_loss += int(valor_entrada)
 		stop_loss = novo_stop_loss
 		print(f'{Fore.GREEN}Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
 
@@ -561,6 +556,9 @@ while True:
 try:
 	buscarMenor()
 	while True:
+		timeNow = timestamp_converter()
+		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+		print(data_hora, end='\x1b[K\r')
 		for row in em_espera:
 			horario = row[2]
 			if galeRepete:
@@ -577,7 +575,6 @@ try:
 
 			s = horario + ":00"
 			f = '%H:%M:%S'
-			timeNow = timestamp_converter()
 			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 
 			if (dif == -40) and get_profit == True:
@@ -594,11 +591,11 @@ try:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
-					time.sleep(2)
+					time.sleep(1)
 				else:
 					if timerzone(int(timeframe)):
 						print('HORÁRIO NÃO RECOMENDADO PELO TIMERZONE!')
-						time.sleep(2)
+						time.sleep(1)
 					else:
 						if analisarTendencia == 'S':
 							tend = Verificar_Tendencia(par, direcao)
@@ -612,29 +609,31 @@ try:
 
 						if tend != direcao:
 							print(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
-							time.sleep(2)
+							time.sleep(1)
 
 						else:
 							if hit:
 								print(f' HIT DE VELA NA PARIDADE {par}!\n')
-								time.sleep(2)
+								time.sleep(1)
 
 							elif par not in paridades_fechadas and payout >= payout_minimo:
 								operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout)
-								time.sleep(2)
 							else:
 								if par in paridades_fechadas:
 									print(f' PARIDADE {par} FECHADA!\n')
 								else:
 									print(' PAYOUT ABAIXO DO MINIMO ESTABELECIDO!\n')
-								time.sleep(2)
+									time.sleep(1)
 
 			if dif > 0:
 				buscarMenor()
 				break
-		timeNow = timestamp_converter()
-		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-		print(data_hora, end='\x1b[K\r')
-		time.sleep(0.1)
+
+		time.sleep(0.5)
 except KeyboardInterrupt:
+	banca()
+	mensagem = f'Operações: {total_operacoes} | Vencedoras: {vitorias} | Perdedoras: {derrotas}\nAssertividade: {total_porcentagem}%\n'
+	mensagem += f"Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}"
+	print(f'{Fore.BLUE}{mensagem}')
+	Mensagem(mensagem)
 	exit()
