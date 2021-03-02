@@ -233,10 +233,10 @@ def buscarMenor():
 	em_espera = []
 	for row in leitor:
 		horario = row[2] + ":00"
-		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds() / 60)
+		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds())
 		# Filtro para excluir os sinais que ja se passaram os horarios
-		if dif < 0:
-			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
+		if dif < -40:
+			# Adiciona a diferença de tempo em segundos para posterior sorteio de menor valor
 			row.append(dif)
 			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
 			em_espera.append(row)
@@ -389,7 +389,6 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			if resultado:
 				entrou_gale = False
 				lucroTotal += lucro
-				verificarStop()
 
 				if lucro > 0:
 					n = 1
@@ -446,7 +445,6 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			if resultado:
 				lucroTotal += lucro
 				entrou_gale = False
-				verificarStop()
 
 				if resultado == 'win':
 					n = 1
@@ -559,6 +557,7 @@ try:
 		timeNow = timestamp_converter()
 		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 		print(data_hora, end='\x1b[K\r')
+		verificarStop()
 		for row in em_espera:
 			horario = row[2]
 			if galeRepete:
