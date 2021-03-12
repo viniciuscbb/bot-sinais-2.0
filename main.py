@@ -67,8 +67,8 @@ def Total_Operacoes(lucro):
 		derrotas += 1
 	total_operacoes = vitorias + derrotas
 	total_porcentagem = int(vitorias / total_operacoes * 100)
-
-	Trailing_Stop(lucro)
+	if trailing_stop == 'S':
+		Trailing_Stop(lucro)
 
 
 def banca():
