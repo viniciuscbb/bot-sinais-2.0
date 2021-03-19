@@ -88,7 +88,7 @@ def configuracao():
 	total_operacoes = 0
 	total_porcentagem = 0
 
-	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout')}
+	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout'), 'usar_ciclos': arquivo.get('CICLOS', 'usar_ciclos'), 'ciclos_nivel': arquivo.get('CICLOS', 'nivel_ciclos')}
 
 
 def Clear_Screen():
@@ -124,6 +124,8 @@ trailing_stop_valor = float(config['trailing_stop_valor'])
 stop_win = abs(float(config['stop_win']))
 stop_loss = float(config['stop_loss']) * -1.0
 payout_minimo = int(config['payout_minimo'])
+ciclos_ativos = 0
+valor_entrada_ciclo = float(config['entrada'])
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
@@ -221,6 +223,7 @@ def Trailing_Stop(lucro):
 		novo_stop_loss += int(valor_entrada)
 		stop_loss = novo_stop_loss
 		print(f'{Fore.GREEN}Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
+		Mensagem(f'Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
 
 
 def buscarMenor():
@@ -379,6 +382,16 @@ def checkProfit(par, timeframe):
             return False, 0
 
 
+def Calcula_Valor_Ciclo(lucro):
+	global valor_entrada_ciclo, ciclos_ativos
+	if lucro < 0 and ciclos_ativos <= int(config['ciclos_nivel']):
+		valor_entrada_ciclo = (valor_entrada * (float(config['valorGale']) ** int(config['niveis']))) * float(config['valorGale'])
+		ciclos_ativos += 1
+	else:
+		valor_entrada_ciclo = float(config['entrada'])
+		ciclos_ativos = 0
+
+
 def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 	global galeRepete, lucroTotal, parAntigo, direcaoAntigo, timeframeAntigo, valor_entrada, proxSinal, valorGaleProxSinal
 
@@ -434,6 +447,8 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							valorGaleSinal = config['entrada']
 				if not entrou_gale:
 					Total_Operacoes(lucro)
+					if config['usar_ciclos'] == 'S':
+						Calcula_Valor_Ciclo(lucro)
 				break
 
 			time.sleep(0.5)
@@ -489,6 +504,8 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							valorGaleSinal = config['entrada']
 				if not entrou_gale:
 					Total_Operacoes(lucro)
+					if config['usar_ciclos'] == 'S':
+						Calcula_Valor_Ciclo(lucro)
 
 		else:
 			print(f'{Fore.RED}ERRO AO REALIZAR OPERAÇÃO!!\n')
@@ -570,7 +587,10 @@ try:
 				direcao = row[3].lower()
 				timeframe_retorno = timeFrame(row[0])
 				timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
-				valor_entrada = config['entrada']
+				if config['usar_ciclos'] == 'S':
+					valor_entrada = valor_entrada_ciclo
+				else:
+					valor_entrada = float(config['entrada'])
 
 			s = horario + ":00"
 			f = '%H:%M:%S'

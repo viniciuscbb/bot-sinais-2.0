@@ -12,12 +12,16 @@ payout = 80
 martingale = S
 mgProxSinal = N
 valorGale = 2.3
-niveis = 2
+niveis = 1
 
 analisarTendencia = N
 noticias = N
 timerzone = N
 hitVela = N
+
+[CICLOS]
+usar_ciclos = S
+nivel_ciclos = 2
 
 [telegram]
 telegram_token = YOUR BOT TOKEN
