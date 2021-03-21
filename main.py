@@ -4,6 +4,7 @@ from dateutil import tz
 from colorama import Fore
 from bs4 import BeautifulSoup
 import threading, json, sys, requests, configparser, csv, time, os, colorama
+import pandas as pd
 
 vitorias = 0
 derrotas = 0
@@ -88,7 +89,7 @@ def configuracao():
 	total_operacoes = 0
 	total_porcentagem = 0
 
-	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout'), 'usar_ciclos': arquivo.get('CICLOS', 'usar_ciclos'), 'ciclos_nivel': arquivo.get('CICLOS', 'nivel_ciclos')}
+	return {'entrada': arquivo.get('GERAL', 'entrada'), 'entrada_percentual': arquivo.get('GERAL', 'entrada_percentual'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout'), 'usar_ciclos': arquivo.get('CICLOS', 'usar_ciclos'), 'ciclos_nivel': arquivo.get('CICLOS', 'nivel_ciclos')}
 
 
 def Clear_Screen():
@@ -121,11 +122,11 @@ traderTimerZone = config['timerzone']
 hitdeVela = config['hitVela']
 trailing_stop = config['trailing_stop']
 trailing_stop_valor = float(config['trailing_stop_valor'])
-stop_win = abs(float(config['stop_win']))
-stop_loss = float(config['stop_loss']) * -1.0
 payout_minimo = int(config['payout_minimo'])
 ciclos_ativos = 0
 valor_entrada_ciclo = float(config['entrada'])
+entrada_percentual = config['entrada_percentual']
+periodo = 10
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
@@ -511,14 +512,22 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			print(f'{Fore.RED}ERRO AO REALIZAR OPERAÇÃO!!\n')
 
 
-def Verificar_Tendencia(par, dir):
-	velas = API.get_candles(par, 60, 20, time.time())
-	ultimo = round(velas[0]['close'], 4)
-	primeiro = round(velas[-1]['close'], 4)
-	diferenca = abs(round(((ultimo - primeiro) / primeiro) * 100, 3))
-	tendencia = "call" if ultimo < primeiro and diferenca > 0.01 else "put" if ultimo > primeiro and diferenca > 0.01 else dir
+def Verificar_Tendencia(par, timeframe):
+	velas = API.get_candles(par, (timeframe * 60), periodo, time.time())
+	fechamento = round(velas[-1]['close'], 4)
+	df = pd.DataFrame(velas)
+	EMA = df['close'].ewm(span=periodo, adjust=False).mean()
+	for data in EMA:
+		EMA10 = data
 
-	return tendencia
+	if EMA10 > fechamento:
+		dir = 'put'
+	elif fechamento > EMA10:
+		dir = 'call'
+	else:
+		dir = False
+
+	return dir
 
 
 def Filtro_Hit_Vela(par, timeframe):
@@ -574,7 +583,6 @@ try:
 		timeNow = timestamp_converter()
 		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
 		print(data_hora, end='\x1b[K\r')
-		verificarStop()
 		for row in em_espera:
 			horario = row[2]
 			if galeRepete:
@@ -589,8 +597,16 @@ try:
 				timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
 				if config['usar_ciclos'] == 'S':
 					valor_entrada = valor_entrada_ciclo
+				elif entrada_percentual == 'S':
+					valor_entrada = int((float(config['entrada']) / 100) * (valor_da_banca + lucroTotal))
+					percentual_loss = float(config['stop_loss'])
+					percentual_gain = float(config['stop_win'])
+					stop_loss = int((percentual_loss / 100) * valor_da_banca) * -1
+					stop_win = int((percentual_gain / 100) * valor_da_banca)
 				else:
 					valor_entrada = float(config['entrada'])
+					stop_win = abs(float(config['stop_win']))
+					stop_loss = float(config['stop_loss']) * -1.0
 
 			s = horario + ":00"
 			f = '%H:%M:%S'
@@ -617,7 +633,7 @@ try:
 						time.sleep(1)
 					else:
 						if analisarTendencia == 'S':
-							tend = Verificar_Tendencia(par, direcao)
+							tend = Verificar_Tendencia(par, timeframe)
 						else:
 							tend = direcao
 
@@ -647,6 +663,7 @@ try:
 			if dif > 0:
 				buscarMenor()
 				break
+		verificarStop()
 
 		time.sleep(0.5)
 except KeyboardInterrupt:

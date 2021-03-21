@@ -1,5 +1,6 @@
 [GERAL]
 entrada = 5
+entrada_percentual = N
 conta = PRACTICE
 # PRACTICE / REAL
 
