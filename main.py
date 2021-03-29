@@ -236,7 +236,10 @@ def buscarMenor():
 	f = '%H:%M:%S'
 	em_espera = []
 	for row in leitor:
-		horario = row[2] + ":00"
+		if len(row[2]) == 5:
+			horario = row[2] + ":00"
+		else:
+			horario = row[2]
 		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds())
 		# Filtro para excluir os sinais que ja se passaram os horarios
 		if dif < -40:
@@ -315,7 +318,7 @@ def noticas(paridade):
 
 					# Verifica se a noticia irá acontencer 30 min antes ou depois da operação
 					if minutesDiff >= -30 and minutesDiff <= 0 or minutesDiff <= 30 and minutesDiff >= 0:
-						if impacto > 1:
+						if impacto >= 1:
 							return impacto, moeda, hora, True
 					else:
 						pass
@@ -607,8 +610,10 @@ try:
 					valor_entrada = float(config['entrada'])
 					stop_win = abs(float(config['stop_win']))
 					stop_loss = float(config['stop_loss']) * -1.0
-
-			s = horario + ":00"
+			if len(horario) == 5:
+				s = horario + ":00"
+			else:
+				s = horario
 			f = '%H:%M:%S'
 			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 
