@@ -5,9 +5,9 @@ UTILIZE A API DO FARIA:
 https://github.com/iqoptionapi/iqoptionapi
 
 # Configurações
-1. Abra o config.txt e utilize S ou N para as funções desejadas
+1. Abra o config.txt, adicione seus dados de acesso da iq e utilize S ou N para as funções desejadas
 2. Abra o lista.csv como bloco de notas e adicione os sinais a partir da segunda linha (Não deixe nenhuma linha em branco no final).
-3. Execute o main.py com o python, digite email e senha da IQ e seja feliz.
+3. Execute o main.py com o python.
 <p></p>
  Formato aceito:
   <p></p>
@@ -25,3 +25,4 @@ M5;EURJPY;11:05;PUT;
 - Hit de vela (não opera se houver hit de vela no gráfico).
 - Bot telegram.
 - Filtro de payout
+- Ciclos de entrada

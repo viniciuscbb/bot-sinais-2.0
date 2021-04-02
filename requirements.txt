@@ -3,3 +3,4 @@ datetime
 python-dateutil
 colorama
 BeautifulSoup
+pandas

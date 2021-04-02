@@ -4,6 +4,7 @@ from dateutil import tz
 from colorama import Fore
 from bs4 import BeautifulSoup
 import threading, json, sys, requests, configparser, csv, time, os, colorama
+import pandas as pd
 
 vitorias = 0
 derrotas = 0
@@ -20,12 +21,14 @@ headers = {
 
 colorama.init(autoreset=True)
 
+
 def horaAtual():
     data = datetime.now()
     tm = tz.gettz('America/Sao Paulo')
     tempoAtual = data.astimezone(tm)
     horaAgora = tempoAtual.strftime('%H:%M:%S')
     return horaAgora
+
 
 def timerzone(timeframe):
     if traderTimerZone == 'S':
@@ -65,8 +68,8 @@ def Total_Operacoes(lucro):
 		derrotas += 1
 	total_operacoes = vitorias + derrotas
 	total_porcentagem = int(vitorias / total_operacoes * 100)
-
-	Trailing_Stop(lucro)
+	if trailing_stop == 'S':
+		Trailing_Stop(lucro)
 
 
 def banca():
@@ -86,7 +89,7 @@ def configuracao():
 	total_operacoes = 0
 	total_porcentagem = 0
 
-	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout')}
+	return {'entrada': arquivo.get('GERAL', 'entrada'), 'entrada_percentual': arquivo.get('GERAL', 'entrada_percentual'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout'), 'usar_ciclos': arquivo.get('CICLOS', 'usar_ciclos'), 'ciclos_nivel': arquivo.get('CICLOS', 'nivel_ciclos')}
 
 
 def Clear_Screen():
@@ -119,14 +122,16 @@ traderTimerZone = config['timerzone']
 hitdeVela = config['hitVela']
 trailing_stop = config['trailing_stop']
 trailing_stop_valor = float(config['trailing_stop_valor'])
-stop_win = abs(float(config['stop_win']))
-stop_loss = float(config['stop_loss']) * -1.0
 payout_minimo = int(config['payout_minimo'])
+ciclos_ativos = 0
+valor_entrada_ciclo = float(config['entrada'])
+entrada_percentual = config['entrada_percentual']
+periodo = 10
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
 TELEGRAM_ID = config['telegram_id']
-
+Clear_Screen()
 print(f'''{Fore.BLUE}
 ██████╗░░█████╗░████████╗░░░░░░███████╗██████╗░███████╗███████╗  ██████╗░░░░░█████╗░
 ██╔══██╗██╔══██╗╚══██╔══╝░░░░░░██╔════╝██╔══██╗██╔════╝██╔════╝  ╚════██╗░░░██╔══██╗
@@ -215,15 +220,11 @@ def verificarStop():
 
 def Trailing_Stop(lucro):
 	global stop_loss, novo_stop_loss
-	if lucroTotal >= trailing_stop_valor:
-		trailing_ativo = True
-	else:
-		trailing_ativo = False
-
-	if trailing_ativo and lucro > 0:
-		novo_stop_loss += valor_entrada
+	if lucroTotal >= trailing_stop_valor and lucro > 0:
+		novo_stop_loss += int(valor_entrada)
 		stop_loss = novo_stop_loss
 		print(f'{Fore.GREEN}Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
+		Mensagem(f'Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
 
 
 def buscarMenor():
@@ -235,12 +236,14 @@ def buscarMenor():
 	f = '%H:%M:%S'
 	em_espera = []
 	for row in leitor:
-		horario = row[2] + ":00"
-		dif = int((datetime.strptime(timeNow, f) -
-		          datetime.strptime(horario, f)).total_seconds() / 60)
+		if len(row[2]) == 5:
+			horario = row[2] + ":00"
+		else:
+			horario = row[2]
+		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds())
 		# Filtro para excluir os sinais que ja se passaram os horarios
-		if dif < 0:
-			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
+		if dif < -40:
+			# Adiciona a diferença de tempo em segundos para posterior sorteio de menor valor
 			row.append(dif)
 			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
 			em_espera.append(row)
@@ -270,6 +273,7 @@ def buscarMenor():
 		# Informa o próximo sinal a ser executado
 		print(f'{Fore.BLUE}PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
 		Mensagem(f'SINAIS PENDENTES: {len(em_espera)}\nPROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
+
 
 def noticas(paridade):
 	global noticas
@@ -314,7 +318,7 @@ def noticas(paridade):
 
 					# Verifica se a noticia irá acontencer 30 min antes ou depois da operação
 					if minutesDiff >= -30 and minutesDiff <= 0 or minutesDiff <= 30 and minutesDiff >= 0:
-						if impacto > 1:
+						if impacto >= 1:
 							return impacto, moeda, hora, True
 					else:
 						pass
@@ -373,13 +377,24 @@ def checkProfit(par, timeframe):
 		if digital >= binaria and timeframe > 5:
 			return "digital", digital
 
-		if digital >= turbo and timeframe <=5:
+		if digital >= turbo and timeframe <= 5:
 			return "digital", digital
 
-		if turbo > digital and timeframe <=5:
+		if turbo > digital and timeframe <= 5:
 			return "binaria", turbo
 	except:
             return False, 0
+
+
+def Calcula_Valor_Ciclo(lucro):
+	global valor_entrada_ciclo, ciclos_ativos
+	if lucro < 0 and ciclos_ativos <= int(config['ciclos_nivel']):
+		valor_entrada_ciclo = (valor_entrada * (float(config['valorGale']) ** int(config['niveis']))) * float(config['valorGale'])
+		ciclos_ativos += 1
+	else:
+		valor_entrada_ciclo = float(config['entrada'])
+		ciclos_ativos = 0
+
 
 def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 	global galeRepete, lucroTotal, parAntigo, direcaoAntigo, timeframeAntigo, valor_entrada, proxSinal, valorGaleProxSinal
@@ -391,7 +406,6 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			if resultado:
 				entrou_gale = False
 				lucroTotal += lucro
-				verificarStop()
 
 				if lucro > 0:
 					n = 1
@@ -412,8 +426,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						parAntigo = par
 						direcaoAntigo = dir
 						timeframeAntigo = timeframe
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
 							valorGaleProxSinal = valorGaleSinal
@@ -423,8 +436,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							galeRepete = False
 
 					elif galeSinal == 'S':
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if n <= int(config['niveis']):
 							entrou_gale = True
 							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
@@ -439,6 +451,8 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							valorGaleSinal = config['entrada']
 				if not entrou_gale:
 					Total_Operacoes(lucro)
+					if config['usar_ciclos'] == 'S':
+						Calcula_Valor_Ciclo(lucro)
 				break
 
 			time.sleep(0.5)
@@ -450,7 +464,6 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			if resultado:
 				lucroTotal += lucro
 				entrou_gale = False
-				verificarStop()
 
 				if resultado == 'win':
 					n = 1
@@ -471,8 +484,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 						parAntigo = par
 						direcaoAntigo = dir
 						timeframeAntigo = timeframe
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
 
@@ -481,8 +493,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							galeRepete = False
 
 					elif galeSinal == 'S':
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if n <= int(config['niveis']):
 							entrou_gale = True
 							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
@@ -497,23 +508,33 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							valorGaleSinal = config['entrada']
 				if not entrou_gale:
 					Total_Operacoes(lucro)
+					if config['usar_ciclos'] == 'S':
+						Calcula_Valor_Ciclo(lucro)
 
 		else:
 			print(f'{Fore.RED}ERRO AO REALIZAR OPERAÇÃO!!\n')
 
 
-def Verificar_Tendencia(par, dir):
-	velas = API.get_candles(par, 60, 9, time.time())
-	ultimo = round(velas[0]['close'], 4)
-	primeiro = round(velas[-1]['close'], 4)
-	diferenca = abs(round(((ultimo - primeiro) / primeiro) * 100, 3))
-	tendencia = "call" if ultimo < primeiro and diferenca > 0.01 else "put" if ultimo > primeiro and diferenca > 0.01 else dir
+def Verificar_Tendencia(par, timeframe):
+	velas = API.get_candles(par, (timeframe * 60), periodo, time.time())
+	fechamento = round(velas[-1]['close'], 4)
+	df = pd.DataFrame(velas)
+	EMA = df['close'].ewm(span=periodo, adjust=False).mean()
+	for data in EMA:
+		EMA10 = data
 
-	return tendencia
+	if EMA10 > fechamento:
+		dir = 'put'
+	elif fechamento > EMA10:
+		dir = 'call'
+	else:
+		dir = False
+
+	return dir
 
 
-def Filtro_Hit_Vela(par):
-	velas = API.get_candles(par, 60, 5, time.time())
+def Filtro_Hit_Vela(par, timeframe):
+	velas = API.get_candles(par, (60 * timeframe), 5, time.time())
 	velas[0] = 'r' if velas[0]['open'] > velas[0]['close'] else 'g'
 	velas[1] = 'r' if velas[1]['open'] > velas[1]['close'] else 'g'
 	velas[2] = 'r' if velas[2]['open'] > velas[2]['close'] else 'g'
@@ -530,12 +551,10 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 	try:
 		if opcao == 'digital':
 			status, id = API.buy_digital_spot(par, valor_entrada, direcao, timeframe)
-			threading.Thread(target=entradas, args=(status, id, par, direcao,
-			                 timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		elif opcao == 'binaria':
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
-			threading.Thread(target=entradas, args=(status, id, par, direcao,
-			                 timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		else:
 			print('ERRO AO REALIZAR ENTRADA!!')
 			time.sleep(1)
@@ -547,6 +566,7 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 		print(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%\n\n')
 		Mensagem(f'INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%')
 
+
 API.connect()
 API.change_balance(config['conta'])
 while True:
@@ -555,7 +575,6 @@ while True:
 		input('   Aperte enter para sair')
 		sys.exit()
 	else:
-		Clear_Screen()
 		print(f'>> Conectado com sucesso!\n {Fore.RED}VENDA DO BOT PROIBIDA!!!\n')
 		banca()
 		config['banca_inicial'] = valor_da_banca
@@ -564,6 +583,9 @@ while True:
 try:
 	buscarMenor()
 	while True:
+		timeNow = timestamp_converter()
+		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+		print(data_hora, end='\x1b[K\r')
 		for row in em_espera:
 			horario = row[2]
 			if galeRepete:
@@ -576,11 +598,23 @@ try:
 				direcao = row[3].lower()
 				timeframe_retorno = timeFrame(row[0])
 				timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
-				valor_entrada = config['entrada']
-
-			s = horario + ":00"
+				if config['usar_ciclos'] == 'S':
+					valor_entrada = valor_entrada_ciclo
+				elif entrada_percentual == 'S':
+					valor_entrada = int((float(config['entrada']) / 100) * (valor_da_banca + lucroTotal))
+					percentual_loss = float(config['stop_loss'])
+					percentual_gain = float(config['stop_win'])
+					stop_loss = int((percentual_loss / 100) * valor_da_banca) * -1
+					stop_win = int((percentual_gain / 100) * valor_da_banca)
+				else:
+					valor_entrada = float(config['entrada'])
+					stop_win = abs(float(config['stop_win']))
+					stop_loss = float(config['stop_loss']) * -1.0
+			if len(horario) == 5:
+				s = horario + ":00"
+			else:
+				s = horario
 			f = '%H:%M:%S'
-			timeNow = timestamp_converter()
 			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 
 			if (dif == -40) and get_profit == True:
@@ -597,47 +631,50 @@ try:
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
-					time.sleep(2)
+					time.sleep(1)
 				else:
 					if timerzone(int(timeframe)):
 						print('HORÁRIO NÃO RECOMENDADO PELO TIMERZONE!')
-						time.sleep(2)
+						time.sleep(1)
 					else:
 						if analisarTendencia == 'S':
-							tend = Verificar_Tendencia(par, direcao)
+							tend = Verificar_Tendencia(par, timeframe)
 						else:
 							tend = direcao
 
 						if hitdeVela == 'S':
-							hit = Filtro_Hit_Vela(par)
+							hit = Filtro_Hit_Vela(par, timeframe)
 						else:
 							hit = False
 
 						if tend != direcao:
 							print(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
-							time.sleep(2)
+							time.sleep(1)
 
 						else:
 							if hit:
 								print(f' HIT DE VELA NA PARIDADE {par}!\n')
-								time.sleep(2)
+								time.sleep(1)
 
 							elif par not in paridades_fechadas and payout >= payout_minimo:
 								operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout)
-								time.sleep(2)
 							else:
 								if par in paridades_fechadas:
 									print(f' PARIDADE {par} FECHADA!\n')
 								else:
 									print(' PAYOUT ABAIXO DO MINIMO ESTABELECIDO!\n')
-								time.sleep(2)
+									time.sleep(1)
 
 			if dif > 0:
 				buscarMenor()
 				break
-		timeNow = timestamp_converter()
-		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-		print(data_hora, end='\x1b[K\r')
-		time.sleep(0.1)
+		verificarStop()
+
+		time.sleep(0.5)
 except KeyboardInterrupt:
+	banca()
+	mensagem = f'Operações: {total_operacoes} | Vencedoras: {vitorias} | Perdedoras: {derrotas}\nAssertividade: {total_porcentagem}%\n'
+	mensagem += f"Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}"
+	print(f'{Fore.BLUE}{mensagem}')
+	Mensagem(mensagem)
 	exit()
