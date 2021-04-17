@@ -22,7 +22,7 @@ colorama.init(autoreset=True)
 
 def horaAtual():
     data = datetime.now()
-    tm = tz.gettz('America/Sao Paulo')
+    tm = tz.gettz('America/Sao_Paulo')
     tempoAtual = data.astimezone(tm)
     horaAgora = tempoAtual.strftime('%H:%M:%S')
     return horaAgora
@@ -66,7 +66,8 @@ def Total_Operacoes(lucro):
 	total_operacoes = vitorias + derrotas
 	total_porcentagem = int(vitorias / total_operacoes * 100)
 
-	Trailing_Stop(lucro)
+	if config['trailing_stop'] == 'S':
+		Trailing_Stop(lucro)
 
 
 def banca():
@@ -86,7 +87,31 @@ def configuracao():
 	total_operacoes = 0
 	total_porcentagem = 0
 
-	return {'entrada': arquivo.get('GERAL', 'entrada'), 'conta': arquivo.get('GERAL', 'conta'), 'stop_win': arquivo.get('GERAL', 'stop_win'), 'stop_loss': arquivo.get('GERAL', 'stop_loss'), 'payout': 0, 'banca_inicial': 0, 'martingale': arquivo.get('GERAL', 'martingale'), 'mgProxSinal': arquivo.get('GERAL', 'mgProxSinal'), 'valorGale': arquivo.get('GERAL', 'valorGale'), 'niveis': arquivo.get('GERAL', 'niveis'), 'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 'noticias': arquivo.get('GERAL', 'noticias'), 'timerzone': arquivo.get('GERAL', 'timerzone'), 'hitVela': arquivo.get('GERAL', 'hitVela'), 'telegram_token': arquivo.get('telegram', 'telegram_token'), 'telegram_id': arquivo.get('telegram', 'telegram_id'), 'usar_bot': arquivo.get('telegram', 'usar_bot'), 'email': arquivo.get('CONTA', 'email'), 'senha': arquivo.get('CONTA', 'senha'), 'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 'payout_minimo': arquivo.get('GERAL', 'payout')}
+	return {
+		'entrada': arquivo.get('GERAL', 'entrada'), 
+		'conta': arquivo.get('GERAL', 'conta'), 
+		'stop_win': arquivo.get('GERAL', 'stop_win'), 
+		'stop_loss': arquivo.get('GERAL', 'stop_loss'), 
+		'payout': 0, 
+		'banca_inicial': 0, 
+		'martingale': arquivo.get('GERAL', 'martingale'), 
+		'mgProxSinal': arquivo.get('GERAL', 'martingaleProximoSinal'), 
+		'valorGale': arquivo.get('GERAL', 'valorGale'), 
+		'niveis': arquivo.get('GERAL', 'niveis'), 
+		'analisarTendencia': arquivo.get('GERAL', 'analisarTendencia'), 
+		'noticias': arquivo.get('GERAL', 'noticias'), 
+		'timerzone': arquivo.get('GERAL', 'timerzone'), 
+		'hitVela': arquivo.get('GERAL', 'hitVela'), 
+		'telegram_token': arquivo.get('telegram', 'telegram_token'), 
+		'telegram_id': arquivo.get('telegram', 'telegram_id'),
+		'usar_bot': arquivo.get('telegram', 'usar_bot'), 
+		'email': arquivo.get('CONTA', 'email'), 
+		'senha': arquivo.get('CONTA', 'senha'), 
+		'trailing_stop': arquivo.get('GERAL', 'trailing_stop'), 
+		'trailing_stop_valor': arquivo.get('GERAL', 'trailing_stop_valor'), 
+		'payout_minimo': arquivo.get('GERAL', 'payout'),
+		'delay': arquivo.get('GERAL', 'delay'),
+	}
 
 
 def Clear_Screen():
@@ -101,11 +126,7 @@ config = configuracao()
 email = config['email']
 senha = config['senha']
 
-global galeRepete, lucroTotal, parAntigo, direcaoAntigo, timeframeAntigo, valor_entrada, galeSinalRepete, proxSinal
 galeRepete = False
-parAntigo = ''
-direcaoAntigo = ''
-timeframeAntigo = ''
 lucroTotal = 0
 novo_stop_loss = 0
 trailing_ativo = False
@@ -122,11 +143,15 @@ trailing_stop_valor = float(config['trailing_stop_valor'])
 stop_win = abs(float(config['stop_win']))
 stop_loss = float(config['stop_loss']) * -1.0
 payout_minimo = int(config['payout_minimo'])
+delay = int(config['delay'])
+deustop = False
+formatoMoeda = 'R$'
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
 TELEGRAM_ID = config['telegram_id']
 
+Clear_Screen()
 print(f'''{Fore.BLUE}
 ██████╗░░█████╗░████████╗░░░░░░███████╗██████╗░███████╗███████╗  ██████╗░░░░░█████╗░
 ██╔══██╗██╔══██╗╚══██╔══╝░░░░░░██╔════╝██╔══██╗██╔════╝██╔════╝  ╚════██╗░░░██╔══██╗
@@ -153,6 +178,7 @@ API = IQ_Option(email, senha)
 
 
 def Mensagem(mensagem):
+	print(mensagem)
 	if VERIFICA_BOT == 'S':
 		token = config['telegram_token']
 		url = f'https://api.telegram.org/bot{token}/'
@@ -164,7 +190,7 @@ def Mensagem(mensagem):
 
 def timestamp_converter():
 	hora = datetime.now()
-	tm = tz.gettz('America/Recife')
+	tm = tz.gettz('America/Sao_Paulo')
 	hora_atual = hora.astimezone(tm)
 	return hora_atual.strftime('%H:%M:%S')
 
@@ -190,6 +216,7 @@ def timeFrame(timeframe):
 
 
 def verificarStop():
+	global deustop
 	if lucroTotal >= stop_win:
 		deustop = 'WIN'
 	elif lucroTotal <= stop_loss:
@@ -202,15 +229,16 @@ def verificarStop():
 			if thread_ativas == 2:
 				banca()
 				mensagem = f'STOP {deustop} BATIDO!!! - RESULTADO: {float(round(lucroTotal, 2))}\n'
-				mensagem += f'Operações: {total_operacoes} | Vencedoras: {vitorias} | Perdedoras: {derrotas}\nAssertividade: {total_porcentagem}%\n'
+				mensagem += f'Sinais: {total_operacoes} | Wins: {vitorias} | Loss: {derrotas}\nAssertividade: {total_porcentagem}%\n'
 				mensagem += f"Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}"
 				print(f'{Fore.BLUE}{mensagem}')
 				Mensagem(mensagem)
+				input('\n\n Aperte enter para sair')
 				sys.exit()
 			else:
 				print(
 				    f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
-				time.sleep(5)
+				time.sleep(2)
 
 
 def Trailing_Stop(lucro):
@@ -225,6 +253,15 @@ def Trailing_Stop(lucro):
 		stop_loss = novo_stop_loss
 		print(f'{Fore.GREEN}Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
 
+def mostrarProximoSinal():
+	global em_espera
+	if len(em_espera) != 0:
+		# Ordena a lista pela entrada mais proxima
+		em_espera.sort(key=lambda x: x[4], reverse=True)
+		# Informa quantos sinais restam para serem executados
+		# Informa o próximo sinal a ser executado
+		Mensagem(f'\n{Fore.BLUE}SINAIS PENDENTES: {len(em_espera)}\nPROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}\n')
+
 
 def buscarMenor():
 	global em_espera, get_profit
@@ -236,11 +273,10 @@ def buscarMenor():
 	em_espera = []
 	for row in leitor:
 		horario = row[2] + ":00"
-		dif = int((datetime.strptime(timeNow, f) -
-		          datetime.strptime(horario, f)).total_seconds() / 60)
+		dif = int((datetime.strptime(timeNow, f) - datetime.strptime(horario, f)).total_seconds())
 		# Filtro para excluir os sinais que ja se passaram os horarios
-		if dif < 0:
-			# Adiciona a diferença de tempo em minutos para posterior sorteio de menor valor
+		if dif < -40:
+			# Adiciona a diferença de tempo em segundos para posterior sorteio de menor valor
 			row.append(dif)
 			# Coloca os dados da paridade juntamente com o tempo restante para entrada em uma lista
 			em_espera.append(row)
@@ -252,25 +288,24 @@ def buscarMenor():
 			if thread_ativas == 2:
 				em_espera = False
 				banca()
-				mensagem = f'Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}\n'
+				mensagem = f'\n{Fore.BLUE}Lista de sinais finalizada..\nLucro: R${str(round(lucroTotal, 2))}\n'
 				mensagem += f'Operações: {total_operacoes} | Vencedoras: {vitorias} | Perdedoras: {derrotas}\n Assertividade: {total_porcentagem}%\n'
 				mensagem += f"Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}"
-				print(f'{Fore.GREEN}{mensagem}')
 				Mensagem(mensagem)
+				input('\n Aperte enter para sair')
 				sys.exit()
 			else:
-				print(
-				    f'{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} THREADS', end='\x1b[K\r')
-				time.sleep(60)
+				print(f"{Fore.RED}AGUARDANDO FINALIZAÇÃO DE {Fore.GREEN}{thread_ativas - 2} {'OPERAÇÕES' if thread_ativas - 2 > 1 else 'OPERAÇÃO'}", end='\x1b[K\r')
+				time.sleep(10)
 	else:
 		# Ordena a lista pela entrada mais proxima
 		em_espera.sort(key=lambda x: x[4], reverse=True)
 		# Informa quantos sinais restam para serem executados
-		print(f'SINAIS PENDENTES: {len(em_espera)}')
+		'''print(f'SINAIS PENDENTES: {len(em_espera)}')
 		# Informa o próximo sinal a ser executado
 		print(f'{Fore.BLUE}PROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
 		Mensagem(f'SINAIS PENDENTES: {len(em_espera)}\nPROXIMO: {em_espera[0][1]} | TEMPO: {em_espera[0][0]} | HORA: {em_espera[0][2]} | DIREÇÃO: {em_espera[0][3]}')
-
+'''
 def noticas(paridade):
 	global noticas
 
@@ -284,7 +319,7 @@ def noticas(paridade):
 
 			# Pega a data atual
 			data = datetime.now()
-			tm = tz.gettz('America/Sao Paulo')
+			tm = tz.gettz('America/Sao_Paulo')
 			data_atual = data.astimezone(tm)
 			data_atual = data_atual.strftime('%Y-%m-%d')
 			tempoAtual = data.astimezone(tm)
@@ -353,20 +388,20 @@ def checkProfit(par, timeframe):
 	binaria = False
 	turbo = False
 
-	if timeframe > 15:
-		binaria = int(profit[par]["turbo"] * 100)
-		return "binaria", binaria
-
-	if all_asset['digital'][par]['open']:
-		digital = int(Payout(par, timeframe))
-
-	if all_asset['turbo'][par]['open']:
-		turbo = int(profit[par]["turbo"] * 100)
-
-	if all_asset['binary'][par]['open']:
-		binaria = int(profit[par]["binary"] * 100)
-
 	try:
+		if timeframe > 15:
+			binaria = int(profit[par]["turbo"] * 100)
+			return "binaria", binaria
+
+		if all_asset['digital'][par]['open']:
+			digital = int(API.get_digital_payout(par))
+
+		if all_asset['turbo'][par]['open']:
+			turbo = int(profit[par]["turbo"] * 100)
+
+		if all_asset['binary'][par]['open']:
+			binaria = int(profit[par]["binary"] * 100)
+
 		if binaria > digital and timeframe > 5:
 			return "binaria", binaria
 
@@ -381,8 +416,8 @@ def checkProfit(par, timeframe):
 	except:
             return False, 0
 
-def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
-	global galeRepete, lucroTotal, parAntigo, direcaoAntigo, timeframeAntigo, valor_entrada, proxSinal, valorGaleProxSinal
+def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal, horario):
+	global galeRepete, lucroTotal, valor_entrada, valorGaleProxSinal
 
 	if opcao == 'digital':
 		while True:
@@ -391,29 +426,19 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			if resultado:
 				entrou_gale = False
 				lucroTotal += lucro
-				verificarStop()
 
 				if lucro > 0:
-					n = 1
-					valorGaleSinal = config['entrada']
+					valorGaleSinal = float(config['entrada'])
 					valor_entrada = float(config['entrada'])
-					print(f' | {id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}')
-				elif lucro == 0.0:
-					n = 1
-					valorGaleSinal = config['entrada']
-					valor_entrada = float(config['entrada'])
-					print(f' | {id} | {par} -> dogi | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					Mensagem(f'{id} | {par} -> dogi | R$0\n Lucro: R${str(round(lucroTotal, 2))}')
+					valorGaleProxSinal = valorGaleSinal
+					galeRepete = False
+					gale = 'S/ GALE' if n < 1 else f'{n} GALE'
+					Mensagem(f' | {horario} | {par} -> WIN {gale} | {formatoMoeda}{str(round(lucro, 2))}\n{Fore.WHITE} | Lucro: {formatoMoeda}{str(round(lucroTotal, 2))}')
+					mostrarProximoSinal()
 				else:
-					print(f' | {id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}')
+					Mensagem(f' | {horario} | {par} -> LOSS | {formatoMoeda}{str(round(lucro, 2))}\n{Fore.WHITE} | Lucro: {formatoMoeda}{str(round(lucroTotal, 2))}')
 					if galeVela == 'S':
-						parAntigo = par
-						direcaoAntigo = dir
-						timeframeAntigo = timeframe
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
 							valorGaleProxSinal = valorGaleSinal
@@ -425,17 +450,27 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 					elif galeSinal == 'S':
 						valorGaleSinal = round(float(valorGaleSinal) *
 						                       float(config['valorGale']), 2)
-						if n <= int(config['niveis']):
-							entrou_gale = True
-							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
-							Mensagem(f'MARTINGALE NIVEL {n} NO PAR {par}..')
-							status, id = API.buy_digital_spot(par, valorGaleSinal, dir, timeframe)
+						if n < int(config['niveis']) and deustop == False:
 							n += 1
-							threading.Thread(target=entradas, args=(
-							    status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
+							entrou_gale = True
+							Mensagem(f' | MARTINGALE NIVEL {n} NO PAR {par}...')
+							status, id = API.buy_digital_spot_v2(par, valorGaleSinal, dir, timeframe)
+							threading.Thread(
+								target=entradas, 
+								args=(
+							    	status, 
+									id, 
+									par, 
+									dir, 
+									timeframe, 
+									opcao, 
+									n, 
+									valorGaleSinal,
+									horario
+								), daemon=True).start()
 
 						else:
-							n = 1
+							n = 0
 							valorGaleSinal = config['entrada']
 				if not entrou_gale:
 					Total_Operacoes(lucro)
@@ -450,57 +485,59 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 			if resultado:
 				lucroTotal += lucro
 				entrou_gale = False
-				verificarStop()
 
 				if resultado == 'win':
-					n = 1
-					valorGaleSinal = config['entrada']
+					valorGaleSinal = float(config['entrada'])
 					valor_entrada = float(config['entrada'])
-					print(f' | {id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					Mensagem(f'{id} | {par} -> win | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}')
+					valorGaleProxSinal = valorGaleSinal
+					galeRepete = False
+					gale = 'S/ GALE' if n < 1 else f'{n} GALE'
+					Mensagem(f' | {horario} | {par} -> WIN {gale} | {formatoMoeda}{str(round(lucro, 2))}\n{Fore.WHITE} | Lucro: {formatoMoeda}{str(round(lucroTotal, 2))}')
+					mostrarProximoSinal()
 				elif resultado == 'equal':
-					n = 1
-					valorGaleSinal = config['entrada']
+					valorGaleSinal = float(config['entrada'])
 					valor_entrada = float(config['entrada'])
-					print(f' | {id} | {par} -> doji | R$0\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					Mensagem(f'{id} | {par} -> doji | R$0\n Lucro: R${str(round(lucroTotal, 2))}')
+					Mensagem(f' | {horario} | {par} -> DOJI | {formatoMoeda}0\n | Lucro: {formatoMoeda}{str(round(lucroTotal, 2))}')
+					mostrarProximoSinal()
 				elif resultado == 'loose':
-					print(f' | {id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}\n')
-					Mensagem(f'{id} | {par} -> loss | R${str(round(lucro, 2))}\n Lucro: R${str(round(lucroTotal, 2))}')
+					Mensagem(f' | {horario} | {par} - LOSS | {formatoMoeda}{str(round(lucro, 2))}\n{Fore.WHITE} | Lucro: {formatoMoeda}{str(round(lucroTotal, 2))}')
 					if galeVela == 'S':
-						parAntigo = par
-						direcaoAntigo = dir
-						timeframeAntigo = timeframe
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
 						if valorGaleSinal < (round(float(config['entrada']) * int(config['niveis']) * float(config['valorGale']), 2) + 0.01):
 							galeRepete = True
-
+							valorGaleProxSinal = valorGaleSinal
 						else:
-							valorGaleSinal = float(config['entrada'])
 							galeRepete = False
+							valorGaleProxSinal = config['entrada']
 
 					elif galeSinal == 'S':
-						valorGaleSinal = round(float(valorGaleSinal) *
-						                       float(config['valorGale']), 2)
-						if n <= int(config['niveis']):
-							entrou_gale = True
-							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
-							Mensagem(f'MARTINGALE NIVEL {n} NO PAR {par}..')
-							status, id = API.buy(valorGaleSinal, par, dir, timeframe)
+						valorGaleSinal = round(float(valorGaleSinal) * float(config['valorGale']), 2)
+						if n < int(config['niveis']) and deustop == False:
 							n += 1
-							threading.Thread(target=entradas, args=(
-							    status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
-
+							entrou_gale = True
+							Mensagem(f' | MARTINGALE NIVEL {n} NO PAR {par}...')
+							status, id = API.buy(valorGaleSinal, par, dir, timeframe)
+							threading.Thread(
+								target=entradas, 
+								args=(
+							    	status, 
+									id, 
+									par, 
+									dir, 
+									timeframe, 
+									opcao, 
+									n, 
+									valorGaleSinal,
+									horario
+								), daemon=True).start()
 						else:
-							n = 1
+							n = 0
 							valorGaleSinal = config['entrada']
 				if not entrou_gale:
 					Total_Operacoes(lucro)
-
 		else:
 			print(f'{Fore.RED}ERRO AO REALIZAR OPERAÇÃO!!\n')
-
+			mostrarProximoSinal()
 
 def Verificar_Tendencia(par, dir):
 	velas = API.get_candles(par, 60, 9, time.time())
@@ -529,13 +566,35 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 	status = False
 	try:
 		if opcao == 'digital':
-			status, id = API.buy_digital_spot(par, valor_entrada, direcao, timeframe)
-			threading.Thread(target=entradas, args=(status, id, par, direcao,
-			                 timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			status, id = API.buy_digital_spot_v2(par, valor_entrada, direcao, timeframe)
+			threading.Thread(
+				target=entradas, 
+				args=(
+					status, 
+					id, 
+					par, 
+					direcao, 
+					timeframe,
+					opcao, 
+					0, 
+					valor_entrada,
+					horario
+				), daemon=True).start()
 		elif opcao == 'binaria':
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
-			threading.Thread(target=entradas, args=(status, id, par, direcao,
-			                 timeframe, opcao, 1, valor_entrada), daemon=True).start()
+			threading.Thread(
+				target=entradas, 
+				args=(
+					status, 
+					id, 
+					par, 
+					direcao, 
+					timeframe, 
+					opcao, 
+					0, 
+					valor_entrada,
+					horario
+				), daemon=True).start()
 		else:
 			print('ERRO AO REALIZAR ENTRADA!!')
 			time.sleep(1)
@@ -544,8 +603,7 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 		time.sleep(1)
 
 	if status:
-		print(f'\n INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%\n\n')
-		Mensagem(f'INICIANDO OPERAÇÃO {str(id)}..\n {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}%')
+		Mensagem(f'\n\nINICIANDO OPERAÇÃO {str(id)}...\n | {str(horario)} | {par} | OPÇÃO: {opcao.upper()} | DIREÇÃO: {direcao.upper()} | M{timeframe} | PAYOUT: {payout}% | ENTRADA: {formatoMoeda}{valor_entrada}')
 
 API.connect()
 API.change_balance(config['conta'])
@@ -555,27 +613,33 @@ while True:
 		input('   Aperte enter para sair')
 		sys.exit()
 	else:
-		Clear_Screen()
-		print(f'>> Conectado com sucesso!\n {Fore.RED}VENDA DO BOT PROIBIDA!!!\n')
+		print(f'{Fore.GREEN}>> Conectado com sucesso!\n')
 		banca()
 		config['banca_inicial'] = valor_da_banca
 		print(f"{Fore.LIGHTBLUE_EX}Saldo da conta {'demo' if account_type == 'PRACTICE' else 'real'}: {account_balance}")
+		formatoMoeda = API.get_currency()
+		if formatoMoeda == 'BRL':
+			formatoMoeda = 'R$'
+		else:
+			formatoMoeda = '$'
 		break
+
 try:
 	buscarMenor()
+	mostrarProximoSinal()
 	while True:
+		verificarStop()
+
 		for row in em_espera:
 			horario = row[2]
+			par = row[1].upper()
+			direcao = row[3].lower()
+			timeframe_retorno = timeFrame(row[0])
+			timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
+
 			if galeRepete:
-				par = parAntigo
-				direcao = direcaoAntigo
-				timeframe = timeframeAntigo
 				valor_entrada = valorGaleProxSinal
 			else:
-				par = row[1].upper()
-				direcao = row[3].lower()
-				timeframe_retorno = timeFrame(row[0])
-				timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
 				valor_entrada = config['entrada']
 
 			s = horario + ":00"
@@ -583,24 +647,26 @@ try:
 			timeNow = timestamp_converter()
 			dif = (datetime.strptime(timeNow, f) - datetime.strptime(s, f)).total_seconds()
 
-			if (dif == -40) and get_profit == True:
+			if (dif == -35) and get_profit:
 				get_profit = False
 				Get_All_Profit()
 				paridades_fechadas = []
 
-			if dif == -20:
+			if dif == -15:
 				opcao, payout = checkProfit(par, timeframe)
 				if not opcao:
 					paridades_fechadas.append(par)
 
-			if dif == -2:
+			if dif == (delay * -1):
 				impacto, moeda, hora, stts = noticas(par)
 				if stts:
 					print(f' NOTÍCIA COM IMPACTO DE {impacto} TOUROS NA MOEDA {moeda} ÀS {hora}!\n')
+					mostrarProximoSinal()
 					time.sleep(2)
 				else:
 					if timerzone(int(timeframe)):
-						print('HORÁRIO NÃO RECOMENDADO PELO TIMERZONE!')
+						print(' HORÁRIO NÃO RECOMENDADO PELO TIMERZONE!')
+						mostrarProximoSinal()
 						time.sleep(2)
 					else:
 						if analisarTendencia == 'S':
@@ -615,29 +681,42 @@ try:
 
 						if tend != direcao:
 							print(f' PARIDADE {par} CONTRA TENDÊNCIA!\n')
+							mostrarProximoSinal()
 							time.sleep(2)
 
 						else:
-							if hit:
-								print(f' HIT DE VELA NA PARIDADE {par}!\n')
-								time.sleep(2)
-
-							elif par not in paridades_fechadas and payout >= payout_minimo:
-								operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout)
-								time.sleep(2)
-							else:
-								if par in paridades_fechadas:
-									print(f' PARIDADE {par} FECHADA!\n')
+							try:
+								if hit:
+									print(f' HIT DE VELA NA PARIDADE {par}!\n')
+									mostrarProximoSinal()
+									time.sleep(2)
+								elif par not in paridades_fechadas and payout >= payout_minimo:
+									operar(
+										valor_entrada, 
+										par, 
+										direcao, 
+										timeframe, 
+										horario, 
+										opcao, 
+										payout
+									)
+									time.sleep(2)
 								else:
-									print(' PAYOUT ABAIXO DO MINIMO ESTABELECIDO!\n')
+									if payout < payout_minimo:
+										print(' PAYOUT ABAIXO DO MINIMO ESTABELECIDO!\n')
+									else:
+										print(f' PARIDADE {par} FECHADA!\n')
+									mostrarProximoSinal()
+									time.sleep(2)
+							except:
+								print(f' OPERAÇÃO {par} {timeframe} CANCELADA PELA IQ OPTION!\n')
+								mostrarProximoSinal()
 								time.sleep(2)
 
 			if dif > 0:
 				buscarMenor()
 				break
-		timeNow = timestamp_converter()
-		data_hora = datetime.now().strftime('%d/%m/%Y %H:%M:%S')
-		print(data_hora, end='\x1b[K\r')
+		print(datetime.now().strftime('%d/%m/%Y %H:%M:%S'), end='\x1b[K\r')
 		time.sleep(0.1)
 except KeyboardInterrupt:
 	exit()

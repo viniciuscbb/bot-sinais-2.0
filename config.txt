@@ -3,15 +3,16 @@ entrada = 5
 conta = PRACTICE
 # PRACTICE / REAL
 
-stop_win = 50
-stop_loss = 50
-trailing_stop = S
+stop_win = 999
+stop_loss = 999
+trailing_stop = N
 trailing_stop_valor = 25
-payout = 80
+payout = 10
+delay = 2
 
 martingale = S
-mgProxSinal = N
-valorGale = 2.3
+martingaleProximoSinal = N
+valorGale = 2
 niveis = 2
 
 analisarTendencia = N
