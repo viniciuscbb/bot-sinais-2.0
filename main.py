@@ -221,7 +221,7 @@ def verificarStop():
 def Trailing_Stop(lucro):
 	global stop_loss, novo_stop_loss
 	if lucroTotal >= trailing_stop_valor and lucro > 0:
-		novo_stop_loss += int(valor_entrada)
+		novo_stop_loss += int(lucro)
 		stop_loss = novo_stop_loss
 		print(f'{Fore.GREEN}Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
 		Mensagem(f'Trailing STOP ajustado! Novo STOP LOSS: {stop_loss}')
@@ -332,17 +332,6 @@ def noticas(paridade):
 		return 0, 0, 0, False
 
 
-def Payout(par, timeframe):
-    API.subscribe_strike_list(par, timeframe)
-    while True:
-        d = API.get_digital_current_profit(par, timeframe)
-        if d > 0:
-            break
-        time.sleep(1)
-    API.unsubscribe_strike_list(par, timeframe)
-    return d
-
-
 def Get_All_Profit():
 	global all_asset, profit
 	try:
@@ -357,20 +346,20 @@ def checkProfit(par, timeframe):
 	binaria = False
 	turbo = False
 
-	if timeframe > 15:
-		binaria = int(profit[par]["turbo"] * 100)
-		return "binaria", binaria
-
-	if all_asset['digital'][par]['open']:
-		digital = int(Payout(par, timeframe))
-
-	if all_asset['turbo'][par]['open']:
-		turbo = int(profit[par]["turbo"] * 100)
-
-	if all_asset['binary'][par]['open']:
-		binaria = int(profit[par]["binary"] * 100)
-
 	try:
+		if timeframe > 15:
+			binaria = int(profit[par]["turbo"] * 100)
+			return "binaria", binaria
+
+		if all_asset['digital'][par]['open']:
+			digital = int(API.get_digital_payout(par))
+
+		if all_asset['turbo'][par]['open']:
+			turbo = int(profit[par]["turbo"] * 100)
+
+		if all_asset['binary'][par]['open']:
+			binaria = int(profit[par]["binary"] * 100)
+
 		if binaria > digital and timeframe > 5:
 			return "binaria", binaria
 
@@ -441,7 +430,7 @@ def entradas(status, id, par, dir, timeframe, opcao, n, valorGaleSinal):
 							entrou_gale = True
 							print(f' MARTINGALE NIVEL {n} NO PAR {par}..')
 							Mensagem(f'MARTINGALE NIVEL {n} NO PAR {par}..')
-							status, id = API.buy_digital_spot(par, valorGaleSinal, dir, timeframe)
+							status, id = API.buy_digital_spot_v2(par, valorGaleSinal, dir, timeframe)
 							n += 1
 							threading.Thread(target=entradas, args=(
 							    status, id, par, dir, timeframe, opcao, n, valorGaleSinal), daemon=True).start()
@@ -550,7 +539,7 @@ def operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout):
 	status = False
 	try:
 		if opcao == 'digital':
-			status, id = API.buy_digital_spot(par, valor_entrada, direcao, timeframe)
+			status, id = API.buy_digital_spot_v2(par, valor_entrada, direcao, timeframe)
 			threading.Thread(target=entradas, args=(status, id, par, direcao, timeframe, opcao, 1, valor_entrada), daemon=True).start()
 		elif opcao == 'binaria':
 			status, id = API.buy(valor_entrada, par, direcao, timeframe)
