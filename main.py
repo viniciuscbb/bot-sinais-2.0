@@ -126,7 +126,7 @@ payout_minimo = int(config['payout_minimo'])
 ciclos_ativos = 0
 valor_entrada_ciclo = float(config['entrada'])
 entrada_percentual = config['entrada_percentual']
-periodo = 10
+periodo = 20
 
 global VERIFICA_BOT, TELEGRAM_ID
 VERIFICA_BOT = config['usar_bot']
@@ -377,9 +377,9 @@ def checkProfit(par, timeframe):
 
 def Calcula_Valor_Ciclo(lucro):
 	global valor_entrada_ciclo, ciclos_ativos
+	ciclos_ativos += 1
 	if lucro < 0 and ciclos_ativos <= int(config['ciclos_nivel']):
-		valor_entrada_ciclo = (valor_entrada * (float(config['valorGale']) ** int(config['niveis']))) * float(config['valorGale'])
-		ciclos_ativos += 1
+		valor_entrada_ciclo = round(float(config['entrada']) * (float(config['valorGale']) ** int(ciclos_ativos)))
 	else:
 		valor_entrada_ciclo = float(config['entrada'])
 		ciclos_ativos = 0
@@ -589,6 +589,8 @@ try:
 				timeframe = 0 if (timeframe_retorno == 'error') else timeframe_retorno
 				if config['usar_ciclos'] == 'S':
 					valor_entrada = valor_entrada_ciclo
+					stop_win = abs(float(config['stop_win']))
+					stop_loss = float(config['stop_loss']) * -1.0
 				elif entrada_percentual == 'S':
 					valor_entrada = int((float(config['entrada']) / 100) * (valor_da_banca + lucroTotal))
 					percentual_loss = float(config['stop_loss'])
@@ -646,7 +648,15 @@ try:
 								time.sleep(1)
 
 							elif par not in paridades_fechadas and payout >= payout_minimo:
-								operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout)
+								thread_ativas = threading.active_count()
+								if config['usar_ciclos'] == 'S' and thread_ativas > 2:
+									print(' OPERAÇÃO EM ANDAMENTO. ABORTANDO ENTRADA!')
+									time.sleep(5)
+									break
+								else:
+									operar(valor_entrada, par, direcao, timeframe, horario, opcao, payout)
+								if config['usar_ciclos'] == 'S':
+									break
 							else:
 								if par in paridades_fechadas:
 									print(f' PARIDADE {par} FECHADA!\n')
